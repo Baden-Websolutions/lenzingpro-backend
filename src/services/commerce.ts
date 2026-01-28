@@ -43,7 +43,7 @@ export class CommerceClient {
       throw new Error("Commerce token response missing access_token/expires_in");
     }
 
-    // Cache bis 30s vor Ablauf
+    // Cache until 30s before expiry
     const expiresAtEpoch = this.nowEpoch() + Math.max(0, expiresIn - 30);
     return { accessToken, expiresAtEpoch };
   }
@@ -61,32 +61,40 @@ export class CommerceClient {
     return `${this.env.COMMERCE_BASE_URL}/occ/v2/${this.env.COMMERCE_BASE_SITE}`;
   }
 
-  async getCatalogTree(fields = "DEFAULT"): Promise<any> {
-    const token = await this.getAccessToken();
-    const url = `${this.occBase()}/catalogs?fields=${encodeURIComponent(fields)}`;
+  /**
+   * Generic OCC GET request with optional user access token
+   */
+  private async occGet(path: string, userAccessToken?: string): Promise<any> {
+    const token = userAccessToken ?? (await this.getAccessToken());
+    const url = `${this.occBase()}${path}`;
 
     const resp = await fetch(url, {
       method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json"
+      }
     });
 
     const json = await resp.json();
     if (!resp.ok) {
-      const msg = json?.errors?.[0]?.message || `HTTP ${resp.status}`;
-      throw new Error(`OCC catalogs failed: ${msg}`);
+      const msg = json?.errors?.[0]?.message || json?.message || `HTTP ${resp.status}`;
+      throw new Error(`OCC request failed: ${msg}`);
     }
     return json;
   }
 
+  async getCatalogTree(fields = "DEFAULT"): Promise<any> {
+    return this.occGet(`/catalogs?fields=${encodeURIComponent(fields)}`);
+  }
+
   async searchProductsByCategory(opts: {
     categoryCode: string;
-    queryPrefix?: string; // e.g. ":relevance"
-    fields?: string; // DEFAULT
+    queryPrefix?: string;
+    fields?: string;
     pageSize?: number;
     currentPage?: number;
   }): Promise<any> {
-    const token = await this.getAccessToken();
-
     const queryPrefix = opts.queryPrefix ?? ":relevance";
     const fields = opts.fields ?? "DEFAULT";
     const query = `${queryPrefix}:category:${opts.categoryCode}`;
@@ -97,17 +105,7 @@ export class CommerceClient {
     if (typeof opts.pageSize === "number") url.searchParams.set("pageSize", String(opts.pageSize));
     if (typeof opts.currentPage === "number") url.searchParams.set("currentPage", String(opts.currentPage));
 
-    const resp = await fetch(url.toString(), {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
-    });
-
-    const json = await resp.json();
-    if (!resp.ok) {
-      const msg = json?.errors?.[0]?.message || `HTTP ${resp.status}`;
-      throw new Error(`OCC product search failed: ${msg}`);
-    }
-    return json;
+    return this.occGet(`/products/search?${url.searchParams.toString()}`);
   }
 
   async searchProducts(opts: {
@@ -116,7 +114,6 @@ export class CommerceClient {
     pageSize?: number;
     currentPage?: number;
   }): Promise<any> {
-    const token = await this.getAccessToken();
     const query = opts.query ?? ":relevance";
     const fields = opts.fields ?? "DEFAULT";
 
@@ -126,16 +123,16 @@ export class CommerceClient {
     if (typeof opts.pageSize === "number") url.searchParams.set("pageSize", String(opts.pageSize));
     if (typeof opts.currentPage === "number") url.searchParams.set("currentPage", String(opts.currentPage));
 
-    const resp = await fetch(url.toString(), {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
-    });
+    return this.occGet(`/products/search?${url.searchParams.toString()}`);
+  }
 
-    const json = await resp.json();
-    if (!resp.ok) {
-      const msg = json?.errors?.[0]?.message || `HTTP ${resp.status}`;
-      throw new Error(`OCC search failed: ${msg}`);
+  /**
+   * Get current user info using user-context access token (from OIDC flow)
+   */
+  async getCurrentUser(userAccessToken: string): Promise<any> {
+    if (!userAccessToken) {
+      throw new Error("Missing user access token");
     }
-    return json;
+    return this.occGet(`/users/current?fields=FULL`, userAccessToken);
   }
 }

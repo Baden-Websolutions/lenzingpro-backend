@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDC Login Test - OIDC PKCE & WebSDK</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --border: #d9e2ec;
+      --text: #243b53;
+      --muted: #829ab1;
+      --accent: #3366ff;
+      --error: #b00020;
+      --warn: #d88c00;
+      --success: #1b7a1b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .container {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+    }
+    h1 { margin: 0 0 16px; }
+    h2 { margin: 24px 0 12px; font-size: 1.2em; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .toggle-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .toggle-btn {
+      padding: 10px 20px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .toggle-btn:hover {
+      border-color: var(--accent);
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    button {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .info { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .error { color: var(--error); font-weight: 600; }
+    .success { color: var(--success); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    pre {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CDC Login Test - OIDC PKCE & WebSDK</h1>
+    
+    <div class="card">
+      <h2>Authentifizierungsmodus wählen</h2>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="mode-pkce">OIDC PKCE (SPA)</button>
+        <button class="toggle-btn" id="mode-websdk">WebSDK (Legacy)</button>
+      </div>
+      <p class="info">
+        <strong>OIDC PKCE:</strong> Moderne, sichere Authentifizierung ohne Gigya WebSDK<br>
+        <strong>WebSDK:</strong> Klassische Gigya-Integration mit screensets
+      </p>
+    </div>
+
+    <!-- PKCE Mode -->
+    <div id="pkce-container">
+      <div class="card">
+        <h2>1. Discovery laden</h2>
+        <button id="btn-discovery">Discovery Bundle laden</button>
+        <div id="discovery-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>2. Login starten (PKCE)</h2>
+        <button id="btn-login-pkce">Login mit PKCE starten</button>
+        <div id="login-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>3. Code Exchange (nach Redirect)</h2>
+        <p class="info">Nach dem Redirect wird der Code automatisch ausgetauscht</p>
+        <button id="btn-exchange">Code manuell austauschen</button>
+        <div id="exchange-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>4. Session Status</h2>
+        <button id="btn-session">Session prüfen</button>
+        <button id="btn-logout">Logout</button>
+        <div id="session-result"></div>
+      </div>
+    </div>
+
+    <!-- WebSDK Mode -->
+    <div id="websdk-container" class="hidden">
+      <div class="card">
+        <h2>WebSDK Login</h2>
+        <button id="btn-websdk-login">WebSDK Login anzeigen</button>
+        <button id="btn-websdk-logout">WebSDK Logout</button>
+        <div id="websdk-result"></div>
+        <div id="gigya-screenset"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Debug Log</h2>
+      <button id="btn-clear-log">Log löschen</button>
+      <pre id="log"></pre>
+    </div>
+  </div>
+
+<script>
+// Configuration
+const API_BASE = "https://api.mtna-lp.dev";
+const CDC_CONFIG = {
+  clientId: 'ABbd672Koy3U',
+  redirectUri: 'https://api.mtna-lp.dev/occ',
+  scope: 'openid profile email',
+  apiKey: '4_XQnjjmLc16oS7vqA6DvIAg'
+};
+
+// State
+let currentMode = 'pkce';
+let pkceState = null;
+let discoveryData = null;
+
+// Logging
+function log(msg, type = 'info') {
+  const logEl = document.getElementById('log');
+  const timestamp = new Date().toLocaleTimeString();
+  const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warn' ? '⚠️' : 'ℹ️';
+  logEl.textContent += `[${timestamp}] ${prefix} ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function showResult(elementId, content, type = 'info') {
+  const el = document.getElementById(elementId);
+  el.innerHTML = `<div class="${type}">${content}</div>`;
+}
+
+async function safeJson(response) {
+  const txt = await response.text();
+  try { return JSON.parse(txt); }
+  catch (e) { throw new Error(`JSON parse error: ${e.message}; body=${txt}`); }
+}
+
+// Mode Toggle
+document.getElementById('mode-pkce').addEventListener('click', () => {
+  currentMode = 'pkce';
+  document.getElementById('mode-pkce').classList.add('active');
+  document.getElementById('mode-websdk').classList.remove('active');
+  document.getElementById('pkce-container').classList.remove('hidden');
+  document.getElementById('websdk-container').classList.add('hidden');
+  log('Modus gewechselt: OIDC PKCE');
+});
+
+document.getElementById('mode-websdk').addEventListener('click', () => {
+  currentMode = 'websdk';
+  document.getElementById('mode-websdk').classList.add('active');
+  document.getElementById('mode-pkce').classList.remove('active');
+  document.getElementById('websdk-container').classList.remove('hidden');
+  document.getElementById('pkce-container').classList.add('hidden');
+  log('Modus gewechselt: WebSDK');
+  loadWebSDK();
+});
+
+// ========== PKCE MODE ==========
+
+// 1. Load Discovery
+document.getElementById('btn-discovery').addEventListener('click', async () => {
+  log('Discovery Bundle wird geladen...');
+  try {
+    const res = await fetch(`${API_BASE}/oidc/discovery/bundle`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    discoveryData = await safeJson(res);
+    
+    log('Discovery Bundle erfolgreich geladen', 'success');
+    showResult('discovery-result', `<pre>${JSON.stringify(discoveryData, null, 2)}</pre>`, 'success');
+  } catch (err) {
+    log(`Discovery Fehler: ${err.message}`, 'error');
+    showResult('discovery-result', err.message, 'error');
+  }
+});
+
+// 2. Start Login (PKCE)
+document.getElementById('btn-login-pkce').addEventListener('click', async () => {
+  log('PKCE Login wird gestartet...');
+  try {
+    // Generate PKCE parameters
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    const state = generateRandomString(32);
+    const nonce = generateRandomString(32);
+
+    // Store in sessionStorage
+    sessionStorage.setItem('pkce_verifier', verifier);
+    sessionStorage.setItem('pkce_state', state);
+    sessionStorage.setItem('pkce_nonce', nonce);
+
+    // Build authorization URL
+    const authUrl = new URL(`https://fidm.eu1.gigya.com/oidc/op/v1.0/${CDC_CONFIG.apiKey}/authorize`);
+    authUrl.searchParams.set('client_id', CDC_CONFIG.clientId);
+    authUrl.searchParams.set('redirect_uri', CDC_CONFIG.redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', CDC_CONFIG.scope);
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('nonce', nonce);
+    authUrl.searchParams.set('code_challenge', challenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('response_mode', 'query');
+
+    log('Redirect zu CDC Authorization Endpoint...', 'success');
+    showResult('login-result', `<a href="${authUrl.toString()}" target="_blank">Zum Login</a>`, 'success');
+    
+    // Redirect
+    // window.location.href = authUrl.toString();
+  } catch (err) {
+    log(`Login Fehler: ${err.message}`, 'error');
+    showResult('login-result', err.message, 'error');
+  }
+});
+
+// 3. Exchange Code
+document.getElementById('btn-exchange').addEventListener('click', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const state = urlParams.get('state');
+  
+  if (!code) {
+    showResult('exchange-result', 'Kein Code im URL gefunden', 'warn');
+    return;
+  }
+
+  const storedState = sessionStorage.getItem('pkce_state');
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const nonce = sessionStorage.getItem('pkce_nonce');
+
+  if (state !== storedState) {
+    log('State Mismatch!', 'error');
+    showResult('exchange-result', 'State Mismatch - möglicher CSRF-Angriff', 'error');
+    return;
+  }
+
+  log('Code wird ausgetauscht...');
+  try {
+    const res = await fetch(`${API_BASE}/oidc/token/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, codeVerifier: verifier, nonce })
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const tokens = await safeJson(res);
+
+    log('Token Exchange erfolgreich!', 'success');
+    showResult('exchange-result', `<pre>${JSON.stringify(tokens, null, 2)}</pre>`, 'success');
+
+    // Clear PKCE state
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('pkce_state');
+    sessionStorage.removeItem('pkce_nonce');
+  } catch (err) {
+    log(`Token Exchange Fehler: ${err.message}`, 'error');
+    showResult('exchange-result', err.message, 'error');
+  }
+});
+
+// 4. Session Status
+document.getElementById('btn-session').addEventListener('click', async () => {
+  log('Session wird geprüft...');
+  try {
+    const res = await fetch(`${API_BASE}/session`, { credentials: 'include' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const session = await safeJson(res);
+
+    if (session.authenticated) {
+      log('Session aktiv', 'success');
+      showResult('session-result', `<pre>${JSON.stringify(session.user, null, 2)}</pre>`, 'success');
+    } else {
+      log('Nicht authentifiziert', 'warn');
+      showResult('session-result', 'Nicht authentifiziert', 'warn');
+    }
+  } catch (err) {
+    log(`Session Fehler: ${err.message}`, 'error');
+    showResult('session-result', err.message, 'error');
+  }
+});
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  log('Logout...');
+  try {
+    const res = await fetch(`${API_BASE}/session/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    
+    log('Logout erfolgreich', 'success');
+    showResult('session-result', 'Logout erfolgreich', 'success');
+  } catch (err) {
+    log(`Logout Fehler: ${err.message}`, 'error');
+    showResult('session-result', err.message, 'error');
+  }
+});
+
+// ========== WEBSDK MODE ==========
+
+function loadWebSDK() {
+  if (window.gigya) {
+    log('WebSDK bereits geladen', 'success');
+    return;
+  }
+
+  log('WebSDK wird geladen...');
+  const script = document.createElement('script');
+  script.src = `https://cdns.eu1.gigya.com/js/gigya.js?apikey=${CDC_CONFIG.apiKey}`;
+  script.onload = () => {
+    log('WebSDK geladen', 'success');
+    showResult('websdk-result', 'WebSDK bereit', 'success');
+  };
+  script.onerror = () => {
+    log('WebSDK Ladefehler', 'error');
+    showResult('websdk-result', 'WebSDK konnte nicht geladen werden', 'error');
+  };
+  document.head.appendChild(script);
+}
+
+document.getElementById('btn-websdk-login').addEventListener('click', () => {
+  if (!window.gigya) {
+    showResult('websdk-result', 'WebSDK nicht geladen', 'error');
+    return;
+  }
+
+  log('WebSDK Login wird angezeigt...');
+  window.gigya.accounts.showScreenSet({
+    screenSet: 'Default-RegistrationLogin',
+    containerID: 'gigya-screenset',
+    onLogin: (response) => {
+      log('WebSDK Login erfolgreich', 'success');
+      showResult('websdk-result', `<pre>${JSON.stringify(response, null, 2)}</pre>`, 'success');
+    },
+    onError: (error) => {
+      log(`WebSDK Fehler: ${error.errorMessage}`, 'error');
+      showResult('websdk-result', error.errorMessage, 'error');
+    }
+  });
+});
+
+document.getElementById('btn-websdk-logout').addEventListener('click', () => {
+  if (!window.gigya) {
+    showResult('websdk-result', 'WebSDK nicht geladen', 'error');
+    return;
+  }
+
+  log('WebSDK Logout...');
+  window.gigya.accounts.logout({
+    callback: (response) => {
+      if (response.errorCode === 0) {
+        log('WebSDK Logout erfolgreich', 'success');
+        showResult('websdk-result', 'Logout erfolgreich', 'success');
+      } else {
+        log(`WebSDK Logout Fehler: ${response.errorMessage}`, 'error');
+        showResult('websdk-result', response.errorMessage, 'error');
+      }
+    }
+  });
+});
+
+// ========== HELPERS ==========
+
+function generateRandomString(length) {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function generateCodeVerifier() {
+  const array = new Uint8Array(64);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array);
+}
+
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(new Uint8Array(hash));
+}
+
+function base64UrlEncode(array) {
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+// Clear Log
+document.getElementById('btn-clear-log').addEventListener('click', () => {
+  document.getElementById('log').textContent = '';
+});
+
+// Auto-exchange on page load if code present
+window.addEventListener('load', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('code')) {
+    log('Authorization Code erkannt, automatischer Exchange...', 'warn');
+    document.getElementById('btn-exchange').click();
+  }
+});
+
+log('CDC Login Test bereit');
+</script>
+</body>
+</html>
