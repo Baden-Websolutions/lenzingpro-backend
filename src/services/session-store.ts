@@ -91,4 +91,58 @@ export class SessionStore {
   size(): number {
     return this.sessions.size;
   }
+
+  /**
+   * Update Session Data
+   * Useful for updating tokens after refresh
+   */
+  update(sessionId: string, data: Partial<SessionData>): boolean {
+    const existingSession = this.sessions.get(sessionId);
+    if (!existingSession) {
+      return false;
+    }
+
+    const updatedSession = {
+      ...existingSession,
+      ...data,
+    };
+
+    this.sessions.set(sessionId, updatedSession);
+    return true;
+  }
+
+  /**
+   * Get Session by User ID
+   * Returns the first session found for the user
+   */
+  getByUserId(userId: string): { sessionId: string; data: SessionData } | undefined {
+    for (const [sessionId, data] of this.sessions.entries()) {
+      if (data.userInfo?.sub === userId || data.userInfo?.uid === userId) {
+        return { sessionId, data };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Delete all sessions for a user
+   */
+  deleteAllForUser(userId: string): number {
+    let deleted = 0;
+    const sessionsToDelete: string[] = [];
+
+    for (const [sessionId, data] of this.sessions.entries()) {
+      if (data.userInfo?.sub === userId || data.userInfo?.uid === userId) {
+        sessionsToDelete.push(sessionId);
+      }
+    }
+
+    for (const sessionId of sessionsToDelete) {
+      if (this.delete(sessionId)) {
+        deleted++;
+      }
+    }
+
+    return deleted;
+  }
 }

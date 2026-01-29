@@ -1,15 +1,23 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { SessionStore } from "../services/session-store.js";
+import type { CDCAuthService } from "../services/cdc-auth.js";
 import { createAuthHook } from "../middleware/auth-fastify.js";
+import {
+  createGigyaSignatureValidator,
+  createUIDMatchValidator,
+} from "../middleware/gigya-signature.js";
 
 /**
  * Register Protected User Routes
  */
 export async function registerUserProtectedRoutes(
   app: FastifyInstance,
-  sessionStore: SessionStore
+  sessionStore: SessionStore,
+  cdcAuth: CDCAuthService
 ) {
   const requireAuth = createAuthHook(sessionStore);
+  const validateGigyaSignature = createGigyaSignatureValidator(cdcAuth);
+  const validateUIDMatch = createUIDMatchValidator();
 
   /**
    * GET /user/profile
@@ -125,6 +133,80 @@ export async function registerUserProtectedRoutes(
         return reply.status(500).send({
           error: "preferences_update_failed",
           message: "Failed to update preferences",
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /user/sensitive-data
+   * Example route requiring both session AND Gigya signature validation
+   * This demonstrates enhanced security for critical operations
+   */
+  app.get(
+    "/user/sensitive-data",
+    { preHandler: [requireAuth, validateGigyaSignature, validateUIDMatch] },
+    async (request: FastifyRequest, reply: FastifyReply) => {      
+      try {
+        const gigyaUID = request.gigyaUID;
+        
+        // At this point, we have:
+        // 1. Valid session (requireAuth)
+        // 2. Valid Gigya signature (validateGigyaSignature)
+        // 3. Matching UIDs (validateUIDMatch)
+        
+        return reply.send({
+          message: "This is sensitive data protected by signature validation",
+          uid: gigyaUID,
+          validated: request.gigyaValidated,
+          data: {
+            // Example sensitive data
+            accountBalance: 1000.00,
+            ssn: "***-**-1234",
+          },
+        });
+      } catch (error) {
+        app.log.error("Sensitive data fetch error:", error);
+        return reply.status(500).send({
+          error: "sensitive_data_fetch_failed",
+          message: "Failed to fetch sensitive data",
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /user/delete-account
+   * Critical operation requiring signature validation
+   */
+  app.post(
+    "/user/delete-account",
+    { preHandler: [requireAuth, validateGigyaSignature, validateUIDMatch] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const uid = request.gigyaUID;
+        
+        // TODO: Implement actual account deletion logic
+        // This would typically involve:
+        // 1. Deleting user data from database
+        // 2. Calling CDC API to delete account
+        // 3. Invalidating all sessions
+        
+        app.log.info(`Account deletion requested for UID: ${uid}`);
+        
+        // Delete all sessions for this user
+        const deletedSessions = sessionStore.deleteAllForUser(uid!);
+        
+        return reply.send({
+          success: true,
+          message: "Account deletion initiated",
+          sessionsDeleted: deletedSessions,
+        });
+      } catch (error) {
+        app.log.error("Account deletion error:", error);
+        return reply.status(500).send({
+          error: "account_deletion_failed",
+          message: "Failed to delete account",
         });
       }
     }

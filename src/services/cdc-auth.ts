@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import type { AppEnv } from "../config/env.js";
+import { GigyaSDK } from "./gigya-sdk.js";
 
 /**
  * CDC (Gigya) OIDC Token Response
@@ -69,6 +70,7 @@ export class CDCAuthService {
   private tokenEndpoint: string;
   private userInfoEndpoint: string;
   private authorizationEndpoint: string;
+  private gigyaSDK: GigyaSDK | null = null;
 
   constructor(env: AppEnv) {
     this.env = env;
@@ -78,6 +80,15 @@ export class CDCAuthService {
     this.tokenEndpoint = `${oidcBase}/token`;
     this.userInfoEndpoint = `${oidcBase}/userinfo`;
     this.authorizationEndpoint = `${oidcBase}/authorize`;
+
+    // Initialize Gigya SDK if secret key is provided
+    if (env.CDC_SECRET_KEY) {
+      this.gigyaSDK = new GigyaSDK(
+        env.CDC_API_KEY,
+        env.CDC_SECRET_KEY,
+        "eu1.gigya.com"
+      );
+    }
   }
 
   /**
@@ -263,5 +274,96 @@ export class CDCAuthService {
    */
   isSessionExpired(session: SessionData): boolean {
     return Date.now() >= session.expiresAt;
+  }
+
+  /**
+   * Validate User Signature from CDC Response
+   * Should be called after directLogin() or any CDC API response with UIDSignature
+   * 
+   * @param uid User ID
+   * @param timestamp Signature timestamp
+   * @param signature UIDSignature from CDC
+   * @param expirationSeconds Maximum age of signature (default: 300 seconds)
+   * @returns true if signature is valid
+   */
+  validateUserSignature(
+    uid: string,
+    timestamp: string,
+    signature: string,
+    expirationSeconds = 300
+  ): boolean {
+    if (!this.gigyaSDK) {
+      throw new Error("Gigya SDK not initialized - CDC_SECRET_KEY missing");
+    }
+    return this.gigyaSDK.validateUserSignature(uid, timestamp, signature, expirationSeconds);
+  }
+
+  /**
+   * Enhanced Direct Login with Signature Validation
+   * Performs login and validates the response signature
+   * 
+   * @param loginID User's login ID (email)
+   * @param password User's password
+   * @returns CDC login response (validated)
+   */
+  async directLoginSecure(
+    loginID: string,
+    password: string
+  ): Promise<CDCLoginResponse> {
+    const response = await this.directLogin(loginID, password);
+
+    // Validate signature if available
+    if (this.gigyaSDK && response.UID && response.UIDSignature && response.signatureTimestamp) {
+      const isValid = this.validateUserSignature(
+        response.UID,
+        response.signatureTimestamp,
+        response.UIDSignature
+      );
+
+      if (!isValid) {
+        throw new Error("Invalid user signature - possible tampering detected");
+      }
+    }
+
+    return response;
+  }
+
+  /**
+   * Get Account Info using Server-to-Server API
+   * Uses OAuth1 signature for authentication
+   * 
+   * @param uid User ID
+   * @returns Account info from CDC
+   */
+  async getAccountInfo(uid: string): Promise<any> {
+    if (!this.gigyaSDK) {
+      throw new Error("Gigya SDK not initialized - CDC_SECRET_KEY missing");
+    }
+    return this.gigyaSDK.sendRequest("accounts.getAccountInfo", { UID: uid });
+  }
+
+  /**
+   * Set Account Info using Server-to-Server API
+   * Uses OAuth1 signature for authentication
+   * 
+   * @param uid User ID
+   * @param data Account data to update
+   * @returns Response from CDC
+   */
+  async setAccountInfo(uid: string, data: Record<string, any>): Promise<any> {
+    if (!this.gigyaSDK) {
+      throw new Error("Gigya SDK not initialized - CDC_SECRET_KEY missing");
+    }
+    return this.gigyaSDK.sendRequest("accounts.setAccountInfo", {
+      UID: uid,
+      ...data,
+    });
+  }
+
+  /**
+   * Check if Gigya SDK is available
+   */
+  hasGigyaSDK(): boolean {
+    return this.gigyaSDK !== null;
   }
 }

@@ -17,6 +17,7 @@ const EnvSchema = z.object({
   CDC_BASE: z.string().url().default("https://fidm.eu1.gigya.com"),
   CDC_API_KEY: z.string().min(1).default("4_XQnjjmLc16oS7vqA6DvIAg"),
   CDC_OIDC_CLIENT_ID: z.string().min(1).default("ABbd672Koy3U"),
+  CDC_SECRET_KEY: z.string().optional(), // Base64-encoded secret key for signature validation
 
   // Frontend & Callback Configuration
   FRONTEND_BASE_URL: z.string().url().default("https://mtna-lp.dev"),

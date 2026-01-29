@@ -10,6 +10,7 @@ import { registerSessionRoutes } from "./routes/session.js";
 import { registerOidcRoutes } from "./routes/oidc.js";
 import { registerOidcDiscoveryProxyRoutes } from "./routes/oidcDiscoveryProxy.js";
 import { SessionStore } from "./services/session-store.js";
+import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 
@@ -58,6 +59,9 @@ export async function buildServer() {
   // Initialize Session Store
   const sessionStore = new SessionStore();
 
+  // Initialize CDC Auth Service
+  const cdcAuth = new CDCAuthService(env);
+
   // Register routes
   await registerCatalogRoutes(app, commerce);
   await registerSessionRoutes(app, commerce);
@@ -66,7 +70,7 @@ export async function buildServer() {
 
   // Register new authentication flow routes
   await registerAuthFlowRoutes(app, env, sessionStore);
-  await registerUserProtectedRoutes(app, sessionStore);
+  await registerUserProtectedRoutes(app, sessionStore, cdcAuth);
 
   return { app, env };
 }
