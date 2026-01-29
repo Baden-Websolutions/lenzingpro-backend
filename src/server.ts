@@ -9,6 +9,9 @@ import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSessionRoutes } from "./routes/session.js";
 import { registerOidcRoutes } from "./routes/oidc.js";
 import { registerOidcDiscoveryProxyRoutes } from "./routes/oidcDiscoveryProxy.js";
+import { SessionStore } from "./services/session-store.js";
+import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
+import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -52,11 +55,18 @@ export async function buildServer() {
   // Initialize Commerce client
   const commerce = new CommerceClient(env);
 
+  // Initialize Session Store
+  const sessionStore = new SessionStore();
+
   // Register routes
   await registerCatalogRoutes(app, commerce);
   await registerSessionRoutes(app, commerce);
   await registerOidcRoutes(app, env);
   await registerOidcDiscoveryProxyRoutes(app);
+
+  // Register new authentication flow routes
+  await registerAuthFlowRoutes(app, env, sessionStore);
+  await registerUserProtectedRoutes(app, sessionStore);
 
   return { app, env };
 }
