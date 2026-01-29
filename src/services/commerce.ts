@@ -76,7 +76,7 @@ export class CommerceClient {
       }
     });
 
-    const json = await resp.json();
+    const json = (await resp.json()) as any;
     if (!resp.ok) {
       const msg = json?.errors?.[0]?.message || json?.message || `HTTP ${resp.status}`;
       throw new Error(`OCC request failed: ${msg}`);
