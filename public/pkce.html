@@ -97,7 +97,6 @@
 
   <script>
     const API = 'https://api.mtna-lp.dev';
-    let verifier = '';
 
     function log(msg, type = 'info') {
       const logEl = document.getElementById('log');
@@ -114,25 +113,10 @@
       el.className = `status ${type}`;
     }
 
-    function generatePKCE() {
-      const array = new Uint8Array(32);
-      crypto.getRandomValues(array);
-      verifier = btoa(String.fromCharCode(...array))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-      
-      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
-        .then(hash => {
-          const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-          return { verifier, challenge };
-        });
-    }
-
     async function startLogin() {
-      log('POST /oidc/authorize', 'endpoint');
+      log('POST /oidc', 'endpoint');
       try {
-        await generatePKCE();
-        const res = await fetch(`${API}/oidc/authorize`, {
+        const res = await fetch(`${API}/oidc`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ returnTo: '/' }),
@@ -164,8 +148,8 @@
         const data = await res.json();
         
         if (data.authenticated) {
-          log(`✓ Eingeloggt: ${data.user?.email || 'Unbekannt'}`, 'success');
-          setStatus(`✓ Eingeloggt: ${data.user?.email}`, 'success');
+          log(`✓ Eingeloggt: ${data.user?.email || data.user?.uid || 'Unbekannt'}`, 'success');
+          setStatus(`✓ Eingeloggt: ${data.user?.email || data.user?.uid}`, 'success');
         } else {
           log('✗ Nicht eingeloggt', 'error');
           setStatus('✗ Nicht eingeloggt', 'error');
@@ -183,7 +167,7 @@
         const data = await res.json();
         
         if (data.discovery) {
-          log(`✓ Discovery: ${data.discovery.issuer}`, 'success');
+          log(`✓ Discovery: ${data.discovery.body?.issuer || 'OK'}`, 'success');
           setStatus('✓ Discovery OK', 'success');
         } else {
           throw new Error('Keine Discovery');

@@ -14,10 +14,6 @@ type CacheEntry = {
   headers: Record<string, string>;
 };
 
-/**
- * OidcDiscoveryProxyService proxies CDC discovery and JWKS endpoints
- * with caching to avoid rate limits and improve performance.
- */
 export class OidcDiscoveryProxyService {
   private cfg: DiscoveryProxyConfig;
   private cache = new Map<string, CacheEntry>();
@@ -33,13 +29,9 @@ export class OidcDiscoveryProxyService {
   async fetchJson(kind: DiscoveryProxyKind): Promise<CacheEntry> {
     const url = this.allowedUrl(kind);
 
-    // Return cached entry if still valid
     const cached = this.cache.get(url);
-    if (cached && Date.now() < cached.expiresAt) {
-      return cached;
-    }
+    if (cached && Date.now() < cached.expiresAt) return cached;
 
-    // Fetch with timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
 
@@ -48,9 +40,9 @@ export class OidcDiscoveryProxyService {
         method: "GET",
         headers: {
           Accept: "application/json",
-          "User-Agent": "lenzingpro-oidc-discovery-proxy/1.0"
+          "User-Agent": "lenzingpro-oidc-discovery-proxy/1.0",
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       const text = await res.text();
@@ -58,11 +50,9 @@ export class OidcDiscoveryProxyService {
       try {
         body = JSON.parse(text);
       } catch {
-        // If not parsable, return raw text for debugging
         body = { raw: text };
       }
 
-      // Extract selected headers (no sensitive headers)
       const headers: Record<string, string> = {};
       const ct = res.headers.get("content-type");
       if (ct) headers["content-type"] = ct;
@@ -75,7 +65,7 @@ export class OidcDiscoveryProxyService {
         status: res.status,
         body,
         headers,
-        expiresAt: Date.now() + this.cfg.cacheTtlMs
+        expiresAt: Date.now() + this.cfg.cacheTtlMs,
       };
 
       this.cache.set(url, entry);

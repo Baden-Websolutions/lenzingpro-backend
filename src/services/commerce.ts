@@ -1,138 +1,122 @@
 import fetch from "node-fetch";
-import { AppEnv } from "../config/env.js";
+import type { AppEnv } from "../config/env.js";
 
-type TokenCache = { accessToken: string; expiresAtEpoch: number };
+type TokenResponse = {
+  access_token: string;
+  expires_in: number;
+  token_type?: string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type OccErrorResponse = {
+  errors?: Array<{ message?: string }>;
+  message?: string;
+};
+
+export type ProductSearchOptions = {
+  fields?: string;
+  pageSize?: number;
+  currentPage?: number;
+};
 
 export class CommerceClient {
   private env: AppEnv;
-  private tokenCache: TokenCache | null = null;
+  private token: string | null = null;
+  private tokenExpiresAt = 0;
 
   constructor(env: AppEnv) {
     this.env = env;
-  }
-
-  private nowEpoch(): number {
-    return Math.floor(Date.now() / 1000);
-  }
-
-  private async fetchClientCredentialsToken(): Promise<TokenCache> {
-    const url = `${this.env.COMMERCE_BASE_URL}/authorizationserver/oauth/token`;
-
-    const body = new URLSearchParams();
-    body.set("grant_type", "client_credentials");
-    body.set("client_id", this.env.COMMERCE_CLIENT_ID);
-    body.set("client_secret", this.env.COMMERCE_CLIENT_SECRET);
-
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    });
-
-    const json = (await resp.json()) as any;
-
-    if (!resp.ok) {
-      const msg = json?.error_description || json?.error || `HTTP ${resp.status}`;
-      throw new Error(`Commerce token request failed: ${msg}`);
-    }
-
-    const accessToken = String(json.access_token || "");
-    const expiresIn = Number(json.expires_in || 0);
-
-    if (!accessToken || !expiresIn) {
-      throw new Error("Commerce token response missing access_token/expires_in");
-    }
-
-    // Cache until 30s before expiry
-    const expiresAtEpoch = this.nowEpoch() + Math.max(0, expiresIn - 30);
-    return { accessToken, expiresAtEpoch };
-  }
-
-  private async getAccessToken(): Promise<string> {
-    const now = this.nowEpoch();
-    if (this.tokenCache && this.tokenCache.expiresAtEpoch > now) {
-      return this.tokenCache.accessToken;
-    }
-    this.tokenCache = await this.fetchClientCredentialsToken();
-    return this.tokenCache.accessToken;
   }
 
   private occBase(): string {
     return `${this.env.COMMERCE_BASE_URL}/occ/v2/${this.env.COMMERCE_BASE_SITE}`;
   }
 
-  /**
-   * Generic OCC GET request with optional user access token
-   */
-  private async occGet(path: string, userAccessToken?: string): Promise<any> {
-    const token = userAccessToken ?? (await this.getAccessToken());
+  private tokenEndpoint(): string {
+    return `${this.env.COMMERCE_BASE_URL}/authorizationserver/oauth/token`;
+  }
+
+  private async getClientCredentialsToken(): Promise<string> {
+    const now = Date.now();
+    if (this.token && now < this.tokenExpiresAt) return this.token;
+
+    const basicAuth = Buffer.from(
+      `${this.env.COMMERCE_CLIENT_ID}:${this.env.COMMERCE_CLIENT_SECRET}`
+    ).toString("base64");
+
+    const resp = await fetch(this.tokenEndpoint(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basicAuth}`,
+      },
+      body: new URLSearchParams({ grant_type: "client_credentials" }),
+    });
+
+    const json = (await resp.json()) as Partial<TokenResponse>;
+    if (!resp.ok) {
+      throw new Error(json?.error_description || json?.error || `HTTP ${resp.status}`);
+    }
+    if (!json.access_token || typeof json.expires_in !== "number") {
+      throw new Error("Invalid token response from Commerce token endpoint");
+    }
+
+    this.token = json.access_token;
+    this.tokenExpiresAt = now + json.expires_in * 1000 - 60_000;
+    return this.token;
+  }
+
+  private async occGet(path: string, accessToken?: string): Promise<any> {
+    const token = accessToken ?? (await this.getClientCredentialsToken());
     const url = `${this.occBase()}${path}`;
 
     const resp = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: "application/json"
-      }
+        Accept: "application/json",
+      },
     });
 
-    const json = (await resp.json()) as any;
+    const json = (await resp.json()) as OccErrorResponse | any;
     if (!resp.ok) {
-      const msg = json?.errors?.[0]?.message || json?.message || `HTTP ${resp.status}`;
-      throw new Error(`OCC request failed: ${msg}`);
+      const msg =
+        (json as OccErrorResponse)?.errors?.[0]?.message ||
+        (json as OccErrorResponse)?.message ||
+        `HTTP ${resp.status}`;
+      throw new Error(msg);
     }
     return json;
   }
 
-  async getCatalogTree(fields = "DEFAULT"): Promise<any> {
-    return this.occGet(`/catalogs?fields=${encodeURIComponent(fields)}`);
+  async getCurrentUser(accessToken: string): Promise<any> {
+    return this.occGet("/users/current", accessToken);
   }
 
-  async searchProductsByCategory(opts: {
-    categoryCode: string;
-    queryPrefix?: string;
-    fields?: string;
-    pageSize?: number;
-    currentPage?: number;
-  }): Promise<any> {
-    const queryPrefix = opts.queryPrefix ?? ":relevance";
-    const fields = opts.fields ?? "DEFAULT";
-    const query = `${queryPrefix}:category:${opts.categoryCode}`;
-
-    const url = new URL(`${this.occBase()}/products/search`);
-    url.searchParams.set("query", query);
-    url.searchParams.set("fields", fields);
-    if (typeof opts.pageSize === "number") url.searchParams.set("pageSize", String(opts.pageSize));
-    if (typeof opts.currentPage === "number") url.searchParams.set("currentPage", String(opts.currentPage));
-
-    return this.occGet(`/products/search?${url.searchParams.toString()}`);
+  async getCatalogTree(): Promise<any> {
+    return this.occGet("/catalogs");
   }
 
-  async searchProducts(opts: {
-    query?: string;
-    fields?: string;
-    pageSize?: number;
-    currentPage?: number;
-  }): Promise<any> {
-    const query = opts.query ?? ":relevance";
-    const fields = opts.fields ?? "DEFAULT";
-
-    const url = new URL(`${this.occBase()}/products/search`);
-    url.searchParams.set("query", query);
-    url.searchParams.set("fields", fields);
-    if (typeof opts.pageSize === "number") url.searchParams.set("pageSize", String(opts.pageSize));
-    if (typeof opts.currentPage === "number") url.searchParams.set("currentPage", String(opts.currentPage));
-
-    return this.occGet(`/products/search?${url.searchParams.toString()}`);
+  async searchProducts(query: string, opts?: ProductSearchOptions): Promise<any> {
+    const params = new URLSearchParams({ query: query || ":relevance" });
+    if (opts?.fields) params.set("fields", opts.fields);
+    if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+    if (opts?.currentPage) params.set("currentPage", String(opts.currentPage));
+    return this.occGet(`/products/search?${params}`);
   }
 
-  /**
-   * Get current user info using user-context access token (from OIDC flow)
-   */
-  async getCurrentUser(userAccessToken: string): Promise<any> {
-    if (!userAccessToken) {
-      throw new Error("Missing user access token");
-    }
-    return this.occGet(`/users/current?fields=FULL`, userAccessToken);
+  async searchProductsByCategory(
+    categoryCode: string,
+    opts?: { query?: string; fields?: string; pageSize?: number; currentPage?: number }
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      query: opts?.query || `:relevance:allCategories:${categoryCode}`,
+    });
+    if (opts?.fields) params.set("fields", opts.fields);
+    if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+    if (opts?.currentPage) params.set("currentPage", String(opts.currentPage));
+    return this.occGet(`/products/search?${params}`);
   }
 }
