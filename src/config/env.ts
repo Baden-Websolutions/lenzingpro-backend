@@ -7,14 +7,23 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3002),
   NODE_ENV: z.string().default("development"),
 
+  // SAP Commerce Cloud (OCC)
   COMMERCE_BASE_URL: z.string().url(),
   COMMERCE_BASE_SITE: z.string().min(1),
   COMMERCE_CLIENT_ID: z.string().min(1),
   COMMERCE_CLIENT_SECRET: z.string().min(1),
 
+  // CDC (Gigya) OIDC Configuration
+  CDC_BASE: z.string().url().default("https://fidm.eu1.gigya.com"),
+  CDC_API_KEY: z.string().min(1).default("4_XQnjjmLc16oS7vqA6DvIAg"),
+  CDC_OIDC_CLIENT_ID: z.string().min(1).default("ABbd672Koy3U"),
+
+  // Frontend & Callback Configuration
   FRONTEND_BASE_URL: z.string().url().default("https://mtna-lp.dev"),
   OIDC_CALLBACK_PATH: z.string().default("/oidc/callback"),
+  OIDC_REDIRECT_URI: z.string().url().default("https://api.mtna-lp.dev/occ"),
 
+  // CORS & Rate Limiting
   CORS_ALLOW_ORIGINS: z.string().default("https://mtna-lp.dev,https://www.mtna-lp.dev"),
   RATE_LIMIT_MAX: z.coerce.number().default(300),
   RATE_LIMIT_TIME_WINDOW_MS: z.coerce.number().default(60000)
