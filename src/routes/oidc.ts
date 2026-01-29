@@ -22,6 +22,23 @@ export async function registerOidcRoutes(app: FastifyInstance, env: AppEnv) {
     return { authorizationUrl };
   });
 
+  // POST /oidc/token - Token Exchange Proxy (vermeidet CORS)
+  app.post("/oidc/token", async (req, reply) => {
+    try {
+      const body = req.body as any;
+      const { code, code_verifier, redirect_uri } = body;
+
+      if (!code || !code_verifier) {
+        return reply.status(400).send({ error: "missing_parameters", message: "code and code_verifier required" });
+      }
+
+      const tokens = await oidcService.exchangeCode(code, code_verifier);
+      return reply.send(tokens);
+    } catch (err: any) {
+      return reply.status(500).send({ error: "token_exchange_failed", message: err?.message || "Unknown error" });
+    }
+  });
+
   // GET /occ - Callback auf Backend-Domain
   app.get("/occ", async (req, reply) => {
     const { code, state, error } = req.query as any;

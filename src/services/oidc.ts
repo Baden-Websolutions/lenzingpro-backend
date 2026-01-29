@@ -37,22 +37,19 @@ export class OidcService {
   }
 
   async exchangeCode(code: string, codeVerifier: string) {
-    const url = `${this.env.COMMERCE_BASE_URL}/authorizationserver/oauth/token`;
+    const url = `${this.env.CDC_BASE}/oidc/op/v1.0/${this.env.CDC_API_KEY}/token`;
     const body = new URLSearchParams();
     body.set("grant_type", "authorization_code");
     body.set("code", code);
     body.set("redirect_uri", this.env.OIDC_REDIRECT_URI);
     body.set("code_verifier", codeVerifier);
 
-    const basicAuth = Buffer.from(
-      `${this.env.COMMERCE_CLIENT_ID}:${this.env.COMMERCE_CLIENT_SECRET}`
-    ).toString("base64");
+    body.set("client_id", this.env.CDC_OIDC_CLIENT_ID);
 
     const resp = await fetch(url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${basicAuth}`
+        "Content-Type": "application/x-www-form-urlencoded"
       },
       body
     });
@@ -66,8 +63,8 @@ export class OidcService {
 
   async verifyIdToken(idToken: string, expectedNonce: string) {
     const { payload } = await jwtVerify(idToken, this.jwks, {
-      issuer: this.env.CDC_BASE,
-      audience: this.env.COMMERCE_CLIENT_ID
+      issuer: `${this.env.CDC_BASE}/oidc/op/v1.0/${this.env.CDC_API_KEY}`,
+      audience: this.env.CDC_OIDC_CLIENT_ID
     });
     if (payload.nonce !== expectedNonce) {
       throw new Error("Nonce mismatch");
