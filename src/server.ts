@@ -56,7 +56,7 @@ export async function buildServer() {
   await registerCatalogRoutes(app, commerce);
   await registerSessionRoutes(app, commerce);
   await registerOidcRoutes(app, env);
-  await registerOidcDiscoveryProxyRoutes(app, env);
+  await registerOidcDiscoveryProxyRoutes(app);
 
   return { app, env };
 }
