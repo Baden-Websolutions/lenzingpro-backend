@@ -1,0 +1,95 @@
+feat: Add JWT-Bearer token exchange authentication flow
+
+Implements a parallel JWT-based authentication flow based on RFC 7523
+and the SAP AppGyver auth-flow pattern. This flow runs alongside the
+existing CDC-OIDC flow without modifying any existing files.
+
+## Features
+
+- JWT-Bearer token exchange (RFC 7523)
+- JWKS-based JWT validation
+- Token caching for performance (NodeCache)
+- Session management compatible with existing SessionStore
+- Complete API endpoints for login, session, refresh, logout
+- Protected route examples
+- Comprehensive documentation and tests
+
+## New Files (14 total)
+
+### Core Implementation (9 files, ~1,064 LOC)
+- src/types/jwt-auth.ts
+- src/middleware/jwt-validator.ts
+- src/middleware/jwt-auth-middleware.ts
+- src/services/jwt-token-exchange.ts
+- src/routes/jwt-auth-flow.ts
+- src/routes/jwt-protected.ts
+- src/server-jwt-integration.ts
+
+### Documentation (5 files, ~1,500 LOC)
+- JWT-AUTH-FLOW.md
+- JWT-AUTH-SUMMARY.md
+- DEPLOYMENT-JWT-AUTH.md
+- PACKAGE-UPDATE.md
+- .env.jwt-auth.example
+
+### Tests
+- http/jwt-auth-test.http
+
+### Modified Files (1 file)
+- src/services/session-store.ts (Type generics for JWT session support)
+
+## Integration
+
+Add one line to src/server.ts after registerUserProtectedRoutes:
+
+```typescript
+import { registerJWTAuthentication } from "./server-jwt-integration.js";
+await registerJWTAuthentication(app, env, sessionStore);
+```
+
+## Dependencies
+
+- Requires: node-cache (new)
+- Existing: jose, fastify, @fastify/cookie
+
+## API Endpoints
+
+Authentication:
+- POST /jwt-auth/login
+- GET /jwt-auth/session
+- POST /jwt-auth/refresh
+- POST /jwt-auth/logout
+
+Protected (examples):
+- GET /jwt-protected/profile
+- GET /jwt-protected/commerce-token
+- POST /jwt-protected/test-commerce
+
+## Security
+
+- JWKS signature verification
+- Issuer and audience validation
+- HttpOnly, Secure, SameSite cookies
+- Token caching with SHA256 keys
+- Session prefix separation (jwt_*)
+
+## Documentation
+
+See JWT-AUTH-FLOW.md for complete technical documentation.
+See DEPLOYMENT-JWT-AUTH.md for step-by-step deployment guide.
+See JWT-AUTH-SUMMARY.md for implementation overview.
+
+## Testing
+
+See http/jwt-auth-test.http for HTTP test suite.
+
+## Rollback
+
+If needed, simply comment out the integration line in server.ts.
+
+## References
+
+- SAP AppGyver Pattern: https://github.com/SAP-samples/appgyver-auth-flows
+- RFC 7523: https://datatracker.ietf.org/doc/html/rfc7523
+
+Closes: #[ISSUE_NUMBER]

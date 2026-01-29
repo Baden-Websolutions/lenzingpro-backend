@@ -1,0 +1,105 @@
+### JWT Authentication Flow Tests
+### Based on SAP AppGyver pattern
+### https://github.com/SAP-samples/appgyver-auth-flows
+
+@baseUrl = https://api.mtna-lp.dev/occ
+@localUrl = http://localhost:3002
+
+# Use local or production
+@apiUrl = {{localUrl}}
+
+### Variables
+@testJWT = eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwibmFtZSI6IlRlc3QgVXNlciIsInVpZCI6ImdpZ3lhLXVpZC0xMjMiLCJpc3MiOiJodHRwczovL2ZpZG0uZXUxLmdpZ3lhLmNvbS9vaWRjL29wL3YxLjAvNF9YUW5qam1MYzE2b1M3dnFBNkR2SUFnIiwiYXVkIjoiQUJiZDY3MktveTNVIiwiZXhwIjoxNzM4MTY0MDAwLCJpYXQiOjE3MzgxNjA0MDB9
+
+###############################################
+# 1. Login with JWT Token
+###############################################
+
+# @name jwtLogin
+POST {{apiUrl}}/jwt-auth/login
+Content-Type: application/json
+
+{
+  "jwt": "{{testJWT}}"
+}
+
+###############################################
+# 2. Check Session Status
+###############################################
+
+GET {{apiUrl}}/jwt-auth/session
+
+###############################################
+# 3. Get User Profile (Protected Route)
+###############################################
+
+GET {{apiUrl}}/jwt-protected/profile
+
+###############################################
+# 4. Get Commerce Token (Protected Route)
+###############################################
+
+GET {{apiUrl}}/jwt-protected/commerce-token
+
+###############################################
+# 5. Test Commerce API Access
+###############################################
+
+POST {{apiUrl}}/jwt-protected/test-commerce
+
+###############################################
+# 6. Manually Refresh Token
+###############################################
+
+POST {{apiUrl}}/jwt-auth/refresh
+
+###############################################
+# 7. Get Cache Statistics (Development Only)
+###############################################
+
+GET {{apiUrl}}/jwt-auth/cache-stats
+
+###############################################
+# 8. Logout
+###############################################
+
+POST {{apiUrl}}/jwt-auth/logout
+
+###############################################
+# Error Cases
+###############################################
+
+### Missing JWT
+POST {{apiUrl}}/jwt-auth/login
+Content-Type: application/json
+
+{
+  "jwt": ""
+}
+
+### Invalid JWT
+POST {{apiUrl}}/jwt-auth/login
+Content-Type: application/json
+
+{
+  "jwt": "invalid.jwt.token"
+}
+
+### Access Protected Route Without Session
+GET {{apiUrl}}/jwt-protected/profile
+
+###############################################
+# Real JWT from CDC (if available)
+###############################################
+
+### Get Authorization Code in Browser
+### Navigate to:
+# https://fidm.eu1.gigya.com/oidc/op/v1.0/4_XQnjjmLc16oS7vqA6DvIAg/authorize
+# ?client_id=ABbd672Koy3U
+# &response_type=code
+# &scope=openid profile email
+# &redirect_uri=http://localhost/
+# &state=test123
+
+### Then exchange code for token (if using CDC)
+### And use the id_token as JWT in the login request above

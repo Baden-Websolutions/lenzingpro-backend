@@ -1,0 +1,30 @@
+# JWT Authentication Flow - Files to Commit
+
+## Core Implementation (7 TypeScript files)
+src/types/jwt-auth.ts
+src/middleware/jwt-validator.ts
+src/middleware/jwt-auth-middleware.ts
+src/services/jwt-token-exchange.ts
+src/routes/jwt-auth-flow.ts
+src/routes/jwt-protected.ts
+src/server-jwt-integration.ts
+
+## Documentation (5 Markdown files)
+JWT-AUTH-FLOW.md
+JWT-AUTH-SUMMARY.md
+DEPLOYMENT-JWT-AUTH.md
+PACKAGE-UPDATE.md
+GIT-COMMIT-MESSAGE.txt
+
+## Configuration (1 file)
+.env.jwt-auth.example
+
+## Tests (1 file)
+http/jwt-auth-test.http
+
+## Modified (1 file)
+src/services/session-store.ts
+
+## Total: 15 files
+## New: 14 files
+## Modified: 1 file

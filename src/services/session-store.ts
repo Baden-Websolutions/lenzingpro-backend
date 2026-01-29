@@ -5,13 +5,13 @@ import type { SessionData } from "./cdc-auth.js";
  * For production, replace with Redis or database
  */
 export class SessionStore {
-  private sessions: Map<string, SessionData> = new Map();
+  private sessions: Map<string, any> = new Map();
   private sessionIdToUserId: Map<string, string> = new Map();
 
   /**
    * Store Session Data
    */
-  set(sessionId: string, data: SessionData): void {
+  set(sessionId: string, data: any): void {
     this.sessions.set(sessionId, data);
     
     // Map sessionId to userId for quick lookup
@@ -23,7 +23,7 @@ export class SessionStore {
   /**
    * Get Session Data
    */
-  get(sessionId: string): SessionData | undefined {
+  get(sessionId: string): any | undefined {
     return this.sessions.get(sessionId);
   }
 
@@ -48,8 +48,8 @@ export class SessionStore {
   /**
    * Get All Sessions for a User
    */
-  getSessionsByUserId(userId: string): SessionData[] {
-    const sessions: SessionData[] = [];
+  getSessionsByUserId(userId: string): any[] {
+    const sessions: any[] = [];
     
     for (const [sessionId, data] of this.sessions.entries()) {
       if (data.userInfo?.sub === userId) {
@@ -96,7 +96,7 @@ export class SessionStore {
    * Update Session Data
    * Useful for updating tokens after refresh
    */
-  update(sessionId: string, data: Partial<SessionData>): boolean {
+  update(sessionId: string, data: Partial<any>): boolean {
     const existingSession = this.sessions.get(sessionId);
     if (!existingSession) {
       return false;
@@ -115,7 +115,7 @@ export class SessionStore {
    * Get Session by User ID
    * Returns the first session found for the user
    */
-  getByUserId(userId: string): { sessionId: string; data: SessionData } | undefined {
+  getByUserId(userId: string): { sessionId: string; data: any } | undefined {
     for (const [sessionId, data] of this.sessions.entries()) {
       if (data.userInfo?.sub === userId || data.userInfo?.uid === userId) {
         return { sessionId, data };
