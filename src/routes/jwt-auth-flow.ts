@@ -76,7 +76,7 @@ export async function registerJWTAuthFlowRoutes(
       const validation = await jwtValidator.validateToken(jwt);
 
       if (!validation.valid || !validation.payload) {
-        app.log.warn("JWT validation failed:", validation.error);
+        app.log.warn({ detail: validation.error }, "JWT validation failed:");
         return reply.status(401).send({
           success: false,
           error: "invalid_jwt",
@@ -92,7 +92,7 @@ export async function registerJWTAuthFlowRoutes(
           validation.payload
         );
       } catch (exchangeError) {
-        app.log.error("Token exchange failed:", exchangeError);
+        app.log.error({ err: exchangeError }, "Token exchange failed:");
         return reply.status(500).send({
           success: false,
           error: "token_exchange_failed",
@@ -133,7 +133,7 @@ export async function registerJWTAuthFlowRoutes(
         },
       } as JWTAuthResponse);
     } catch (error) {
-      app.log.error("JWT login error:", error);
+      app.log.error({ err: error }, "JWT login error:");
       return reply.status(500).send({
         success: false,
         error: "login_failed",
@@ -200,7 +200,7 @@ export async function registerJWTAuthFlowRoutes(
               },
             });
           } catch (refreshError) {
-            app.log.error("Token refresh failed:", refreshError);
+            app.log.error({ err: refreshError }, "Token refresh failed:");
             sessionStore.delete(`jwt_${sessionId}`);
             reply.clearCookie("jwt_session_id");
             return reply.status(401).send({
@@ -233,7 +233,7 @@ export async function registerJWTAuthFlowRoutes(
         },
       });
     } catch (error) {
-      app.log.error("JWT session check error:", error);
+      app.log.error({ err: error }, "JWT session check error:");
       return reply.status(500).send({
         error: "session_check_failed",
         message: "Failed to check JWT session",
@@ -288,7 +288,7 @@ export async function registerJWTAuthFlowRoutes(
         message: "Token refreshed successfully",
       });
     } catch (error) {
-      app.log.error("JWT token refresh error:", error);
+      app.log.error({ err: error }, "JWT token refresh error:");
       return reply.status(500).send({
         error: "refresh_failed",
         message: "Failed to refresh token",
@@ -323,7 +323,7 @@ export async function registerJWTAuthFlowRoutes(
         message: "Logged out successfully",
       });
     } catch (error) {
-      app.log.error("JWT logout error:", error);
+      app.log.error({ err: error }, "JWT logout error:");
       return reply.status(500).send({
         error: "logout_failed",
         message: "Failed to logout",

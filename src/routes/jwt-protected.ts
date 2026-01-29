@@ -121,7 +121,7 @@ export async function registerJWTProtectedRoutes(
           status: response.status,
         });
       } catch (error) {
-        app.log.error("Commerce API test failed:", error);
+        app.log.error({ err: error }, "Commerce API test failed:");
         return reply.status(500).send({
           success: false,
           error: "commerce_test_failed",

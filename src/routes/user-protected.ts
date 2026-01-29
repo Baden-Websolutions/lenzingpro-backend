@@ -43,7 +43,7 @@ export async function registerUserProtectedRoutes(
           },
         });
       } catch (error) {
-        app.log.error("Profile fetch error:", error);
+        app.log.error({ err: error }, "Profile fetch error:");
         return reply.status(500).send({
           error: "profile_fetch_failed",
           message: "Failed to fetch profile",
@@ -66,7 +66,7 @@ export async function registerUserProtectedRoutes(
           user: request.user,
         });
       } catch (error) {
-        app.log.error("User info error:", error);
+        app.log.error({ err: error }, "User info error:");
         return reply.status(500).send({
           error: "user_info_failed",
           message: "Failed to get user info",
@@ -93,7 +93,7 @@ export async function registerUserProtectedRoutes(
           },
         });
       } catch (error) {
-        app.log.error("Preferences fetch error:", error);
+        app.log.error({ err: error }, "Preferences fetch error:");
         return reply.status(500).send({
           error: "preferences_fetch_failed",
           message: "Failed to fetch preferences",
@@ -129,7 +129,7 @@ export async function registerUserProtectedRoutes(
           },
         });
       } catch (error) {
-        app.log.error("Preferences update error:", error);
+        app.log.error({ err: error }, "Preferences update error:");
         return reply.status(500).send({
           error: "preferences_update_failed",
           message: "Failed to update preferences",
@@ -166,7 +166,7 @@ export async function registerUserProtectedRoutes(
           },
         });
       } catch (error) {
-        app.log.error("Sensitive data fetch error:", error);
+        app.log.error({ err: error }, "Sensitive data fetch error:");
         return reply.status(500).send({
           error: "sensitive_data_fetch_failed",
           message: "Failed to fetch sensitive data",
@@ -203,7 +203,7 @@ export async function registerUserProtectedRoutes(
           sessionsDeleted: deletedSessions,
         });
       } catch (error) {
-        app.log.error("Account deletion error:", error);
+        app.log.error({ err: error }, "Account deletion error:");
         return reply.status(500).send({
           error: "account_deletion_failed",
           message: "Failed to delete account",

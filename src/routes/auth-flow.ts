@@ -64,7 +64,7 @@ export async function registerAuthFlowRoutes(
       // Redirect to CDC authorization endpoint
       return reply.redirect(authUrl);
     } catch (error) {
-      app.log.error("Login initiation error:", error);
+      app.log.error({ err: error }, "Login initiation error:");
       return reply.status(500).send({
         error: "login_failed",
         message: "Failed to initiate login",
@@ -89,7 +89,7 @@ export async function registerAuthFlowRoutes(
 
       // Check for OAuth errors
       if (error) {
-        app.log.error("OAuth error:", error, error_description);
+        app.log.error({ err: error, error_description }, "OAuth error:");
         return reply.redirect(`${env.FRONTEND_BASE_URL}/login?error=${error}`);
       }
 
@@ -166,7 +166,7 @@ export async function registerAuthFlowRoutes(
       // Redirect to frontend
       return reply.redirect(`${env.FRONTEND_BASE_URL}/`);
     } catch (error) {
-      app.log.error("Callback error:", error);
+      app.log.error({ err: error }, "Callback error:");
       return reply.redirect(`${env.FRONTEND_BASE_URL}/login?error=callback_failed`);
     }
   });
@@ -190,7 +190,7 @@ export async function registerAuthFlowRoutes(
         message: "Logged out successfully",
       });
     } catch (error) {
-      app.log.error("Logout error:", error);
+      app.log.error({ err: error }, "Logout error:");
       return reply.status(500).send({
         error: "logout_failed",
         message: "Failed to logout",
@@ -238,7 +238,7 @@ export async function registerAuthFlowRoutes(
               user: newSessionData.userInfo,
             });
           } catch (refreshError) {
-            app.log.error("Token refresh failed:", refreshError);
+            app.log.error({ err: refreshError }, "Token refresh failed:");
             sessionStore.delete(sessionId);
             reply.clearCookie("session_id");
             return reply.status(401).send({
@@ -261,7 +261,7 @@ export async function registerAuthFlowRoutes(
         user: session.userInfo,
       });
     } catch (error) {
-      app.log.error("Session check error:", error);
+      app.log.error({ err: error }, "Session check error:");
       return reply.status(500).send({
         error: "session_check_failed",
         message: "Failed to check session",
@@ -303,7 +303,7 @@ export async function registerAuthFlowRoutes(
         message: "Token refreshed successfully",
       });
     } catch (error) {
-      app.log.error("Token refresh error:", error);
+      app.log.error({ err: error }, "Token refresh error:");
       return reply.status(500).send({
         error: "refresh_failed",
         message: "Failed to refresh token",
