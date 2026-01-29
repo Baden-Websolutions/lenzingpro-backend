@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PKCE Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 450px;
+      width: 100%;
+      padding: 32px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #1a202c;
+      margin-bottom: 8px;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin: 16px 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .status.info { background: #e6f7ff; color: #0050b3; }
+    .status.success { background: #f6ffed; color: #389e0d; }
+    .status.error { background: #fff1f0; color: #cf1322; }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+      transition: transform 0.2s;
+    }
+    button:hover { transform: translateY(-2px); }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    .log {
+      background: #1a202c;
+      color: #a0aec0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-top: 16px;
+    }
+    .log-entry {
+      margin-bottom: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid #2d3748;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-endpoint { color: #63b3ed; }
+    .log-success { color: #68d391; }
+    .log-error { color: #fc8181; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 PKCE Login</h1>
+    <div id="status" class="status info">Bereit</div>
+    
+    <button onclick="startLogin()">Login starten</button>
+    <button class="btn-secondary" onclick="checkSession()">Session prüfen</button>
+    <button class="btn-secondary" onclick="testDiscovery()">Discovery testen</button>
+    
+    <div id="log" class="log"></div>
+  </div>
+
+  <script>
+    const API = 'https://api.mtna-lp.dev';
+    let verifier = '';
+
+    function log(msg, type = 'info') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(msg, type = 'info') {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = `status ${type}`;
+    }
+
+    function generatePKCE() {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      verifier = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+        .then(hash => {
+          const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+          return { verifier, challenge };
+        });
+    }
+
+    async function startLogin() {
+      log('POST /oidc/authorize', 'endpoint');
+      try {
+        await generatePKCE();
+        const res = await fetch(`${API}/oidc/authorize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ returnTo: '/' }),
+          credentials: 'include'
+        });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        
+        if (data.authorizationUrl) {
+          log('✓ Authorization URL erhalten', 'success');
+          setStatus('✓ Weiterleitung zu CDC...', 'success');
+          setTimeout(() => {
+            window.location.href = data.authorizationUrl;
+          }, 500);
+        } else {
+          throw new Error('Keine authorizationUrl');
+        }
+      } catch (err) {
+        log(`✗ Fehler: ${err.message}`, 'error');
+        setStatus('✗ Login Fehler', 'error');
+      }
+    }
+
+    async function checkSession() {
+      log('GET /session', 'endpoint');
+      try {
+        const res = await fetch(`${API}/session`, { credentials: 'include' });
+        const data = await res.json();
+        
+        if (data.authenticated) {
+          log(`✓ Eingeloggt: ${data.user?.email || 'Unbekannt'}`, 'success');
+          setStatus(`✓ Eingeloggt: ${data.user?.email}`, 'success');
+        } else {
+          log('✗ Nicht eingeloggt', 'error');
+          setStatus('✗ Nicht eingeloggt', 'error');
+        }
+      } catch (err) {
+        log(`✗ Fehler: ${err.message}`, 'error');
+        setStatus('✗ Session Fehler', 'error');
+      }
+    }
+
+    async function testDiscovery() {
+      log('GET /oidc/discovery/bundle', 'endpoint');
+      try {
+        const res = await fetch(`${API}/oidc/discovery/bundle`);
+        const data = await res.json();
+        
+        if (data.discovery) {
+          log(`✓ Discovery: ${data.discovery.issuer}`, 'success');
+          setStatus('✓ Discovery OK', 'success');
+        } else {
+          throw new Error('Keine Discovery');
+        }
+      } catch (err) {
+        log(`✗ Fehler: ${err.message}`, 'error');
+        setStatus('✗ Discovery Fehler', 'error');
+      }
+    }
+
+    window.onload = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('code')) {
+        log('✓ Authorization Code erhalten', 'success');
+        setStatus('✓ Login erfolgreich', 'success');
+        setTimeout(checkSession, 500);
+      }
+      log('Bereit für Login');
+    };
+  </script>
+</body>
+</html>
