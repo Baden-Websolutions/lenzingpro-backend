@@ -25,10 +25,7 @@ export class OidcService {
   buildAuthorizeUrl(state: string, nonce: string, codeChallenge: string): string {
     const url = new URL(`${this.env.CDC_BASE}/oidc/op/v1.0/${this.env.CDC_API_KEY}/authorize`);
     url.searchParams.set("client_id", this.env.CDC_OIDC_CLIENT_ID);
-    url.searchParams.set(
-      "redirect_uri",
-      `${this.env.FRONTEND_BASE_URL}${this.env.OIDC_CALLBACK_PATH}`
-    );
+    url.searchParams.set("redirect_uri", this.env.OIDC_REDIRECT_URI);
     url.searchParams.set("response_type", "code");
     url.searchParams.set("scope", "openid profile email");
     url.searchParams.set("state", state);
@@ -44,10 +41,7 @@ export class OidcService {
     const body = new URLSearchParams();
     body.set("grant_type", "authorization_code");
     body.set("code", code);
-    body.set(
-      "redirect_uri",
-      `${this.env.FRONTEND_BASE_URL}${this.env.OIDC_CALLBACK_PATH}`
-    );
+    body.set("redirect_uri", this.env.OIDC_REDIRECT_URI);
     body.set("code_verifier", codeVerifier);
 
     const basicAuth = Buffer.from(

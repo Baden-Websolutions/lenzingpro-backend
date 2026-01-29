@@ -22,8 +22,8 @@ export async function registerOidcRoutes(app: FastifyInstance, env: AppEnv) {
     return { authorizationUrl };
   });
 
-  // GET /oidc/callback
-  app.get(env.OIDC_CALLBACK_PATH, async (req, reply) => {
+  // GET /occ - Callback auf Backend-Domain
+  app.get("/occ", async (req, reply) => {
     const { code, state, error } = req.query as any;
 
     if (error) {
@@ -58,7 +58,8 @@ export async function registerOidcRoutes(app: FastifyInstance, env: AppEnv) {
         httpOnly: true,
         secure: true,
         sameSite: "lax",
-        path: "/"
+        path: "/",
+        domain: ".mtna-lp.dev"
       });
       
       if (tokens.refresh_token) {
@@ -66,7 +67,8 @@ export async function registerOidcRoutes(app: FastifyInstance, env: AppEnv) {
           httpOnly: true,
           secure: true,
           sameSite: "lax",
-          path: "/"
+          path: "/",
+          domain: ".mtna-lp.dev"
         });
       }
 
