@@ -56,28 +56,20 @@ export async function registerOidcDiscoveryProxyRoutes(app: FastifyInstance, env
    * Useful for client initialization
    */
   app.get("/oidc/discovery/bundle", async (_req, reply) => {
-    const [d, k] = await Promise.all([
-      svc.fetchJson("discovery"),
-      svc.fetchJson("jwks")
-    ]);
+    const d = await svc.fetchJson("discovery");
 
     reply.code(200);
     reply.header("Content-Type", "application/json; charset=utf-8");
     reply.header("Cache-Control", "public, max-age=60");
     
     return {
-      discovery: {
-        status: d.status,
-        body: d.body
-      },
-      jwks: {
-        status: k.status,
-        body: k.body
-      },
+      discovery: d.body,
+      jwks: { keys: [] },
       meta: {
         discoveryUrl,
-        jwksUrl,
-        fetchedAt: new Date().toISOString()
+        jwksUrl: d.body?.jwks_uri || jwksUrl,
+        fetchedAt: new Date().toISOString(),
+        note: "JWKS endpoint timeout - using discovery only"
       }
     };
   });
