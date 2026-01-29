@@ -1,4 +1,4 @@
-# Lenzingpro Backend - OIDC PKCE Implementation
+# Backend - OIDC PKCE Implementation
 
 Vollständig funktionsfähiges Backend für OIDC PKCE-Authentifizierung mit SAP Commerce Cloud und CDC (Gigya).
 
