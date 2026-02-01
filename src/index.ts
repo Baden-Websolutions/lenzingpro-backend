@@ -1,6 +1,6 @@
-import { buildServer } from "./server.js";
+import { buildServerEnhanced } from "./server-enhanced-cors.js";
 
-const { app, env } = await buildServer();
+const { app, env } = await buildServerEnhanced();
 
 try {
   await app.listen({ port: env.PORT, host: "127.0.0.1" });

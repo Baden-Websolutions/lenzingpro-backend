@@ -1,0 +1,32 @@
+# Neue Dateien für Enhanced CORS Security
+
+## Middleware & Server
+src/middleware/cors-security.ts          # CORS Security Middleware mit erweiterter Validierung
+src/server-enhanced-cors.ts              # Enhanced Server Configuration mit Sicherheitsfeatures
+src/config/env-enhanced.ts               # Erweiterte Environment-Schema mit CORS-Optionen
+
+## Konfiguration & Dokumentation
+.env.enhanced.example                    # Template für erweiterte Umgebungsvariablen
+CORS_Security_Implementation_Guide.md   # Vollständiger Implementierungsleitfaden
+MIGRATION-ENHANCED-CORS.md              # Detaillierte Migrationsanleitung
+QUICKSTART-CORS.md                      # Schnellstart-Anleitung
+
+## Zu ändernde Datei
+src/index.ts                            # Server-Startpunkt (buildServer -> buildServerEnhanced)
+
+## Commit-Nachricht Vorschlag:
+feat: Add enhanced CORS security with Gigya SDK support
+
+- Implement strict origin validation with wildcard subdomain support
+- Add Gigya SDK-specific headers for signature validation
+- Add comprehensive security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+- Add CORS violation logging and monitoring
+- Add production security checks on server startup
+- Add detailed migration guide and quickstart documentation
+- Enhance environment configuration with CORS-specific options
+
+Breaking changes:
+- New required environment variables: CDC_SECRET_KEY, COOKIE_SECRET
+- Server startup now uses buildServerEnhanced() instead of buildServer()
+
+Migration: See MIGRATION-ENHANCED-CORS.md for step-by-step guide
