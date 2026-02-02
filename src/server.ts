@@ -13,6 +13,7 @@ import { SessionStore } from "./services/session-store.js";
 import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
+import authRoutes from "./routes/auth.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -71,6 +72,9 @@ export async function buildServer() {
   // Register new authentication flow routes
   await registerAuthFlowRoutes(app, env, sessionStore);
   await registerUserProtectedRoutes(app, sessionStore, cdcAuth);
+  
+  // Register session-based auth routes
+  await app.register(authRoutes, { prefix: '/auth' });
 
   return { app, env };
 }
