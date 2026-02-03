@@ -211,56 +211,56 @@ export async function registerAuthFlowRoutes(
    * Commented out to avoid duplicate route registration error
    */
   /*
-  app.get("/auth/session", async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const sessionId = request.cookies.session_id;
-
-      if (!sessionId) {
-        return reply.status(401).send({
-          authenticated: false,
-          message: "No session found",
-        });
-      }
-
-      const session = sessionStore.get(sessionId);
-
-      if (!session) {
-        reply.clearCookie("session_id");
-        return reply.status(401).send({
-          authenticated: false,
-          message: "Invalid session",
-        });
-      }
-
-      // Check if session is expired
-      if (cdcAuth.isSessionExpired(session)) {
-        // Try to refresh token
-        if (session.refreshToken) {
-          try {
-            const tokenResponse = await cdcAuth.refreshAccessToken(session.refreshToken);
-            const userInfo = await cdcAuth.getUserInfo(tokenResponse.access_token);
-            const newSessionData = cdcAuth.createSessionData(tokenResponse, userInfo);
-            sessionStore.set(sessionId, newSessionData);
-
-            return reply.send({
-              authenticated: true,
-              user: newSessionData.userInfo,
-            });
-          } catch (refreshError) {
-            app.log.error({ err: refreshError }, "Token refresh failed:");
-            sessionStore.delete(sessionId);
-            reply.clearCookie("session_id");
-            return reply.status(401).send({
-              authenticated: false,
-              message: "Session expired",
-            });
-          }
-        } else {
-          sessionStore.delete(sessionId);
-          reply.clearCookie("session_id");
-          return reply.status(401).send({
-            authenticated: false,
-            message: "Session expired",
+//   app.get("/auth/session", async (request: FastifyRequest, reply: FastifyReply) => {
+//     try {
+//       const sessionId = request.cookies.session_id;
+// 
+//       if (!sessionId) {
+//         return reply.status(401).send({
+//           authenticated: false,
+//           message: "No session found",
+//         });
+//       }
+// 
+//       const session = sessionStore.get(sessionId);
+// 
+//       if (!session) {
+//         reply.clearCookie("session_id");
+//         return reply.status(401).send({
+//           authenticated: false,
+//           message: "Invalid session",
+//         });
+//       }
+// 
+//       // Check if session is expired
+//       if (cdcAuth.isSessionExpired(session)) {
+//         // Try to refresh token
+//         if (session.refreshToken) {
+//           try {
+//             const tokenResponse = await cdcAuth.refreshAccessToken(session.refreshToken);
+//             const userInfo = await cdcAuth.getUserInfo(tokenResponse.access_token);
+//             const newSessionData = cdcAuth.createSessionData(tokenResponse, userInfo);
+//             sessionStore.set(sessionId, newSessionData);
+// 
+//             return reply.send({
+//               authenticated: true,
+//               user: newSessionData.userInfo,
+//             });
+//           } catch (refreshError) {
+//             app.log.error({ err: refreshError }, "Token refresh failed:");
+//             sessionStore.delete(sessionId);
+//             reply.clearCookie("session_id");
+//             return reply.status(401).send({
+//               authenticated: false,
+//               message: "Session expired",
+//             });
+//           }
+//         } else {
+//           sessionStore.delete(sessionId);
+//           reply.clearCookie("session_id");
+//           return reply.status(401).send({
+//             authenticated: false,
+//             message: "Session expired",
           });
         }
       }
