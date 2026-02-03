@@ -174,7 +174,11 @@ export async function registerAuthFlowRoutes(
   /**
    * POST /auth/logout
    * Logs out the user and clears session
+   * 
+   * NOTE: This route is now handled by auth.ts with /auth prefix
+   * Commented out to avoid duplicate route registration error
    */
+  /*
   app.post("/auth/logout", async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionId = request.cookies.session_id;
@@ -197,6 +201,7 @@ export async function registerAuthFlowRoutes(
       });
     }
   });
+  */
 
   /**
    * GET /auth/session
