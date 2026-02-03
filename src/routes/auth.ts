@@ -14,6 +14,45 @@ const GIGYA_API_KEY = '4_XQnjjmLc16oS7vqA6DvIAg'
 const GIGYA_API_SECRET = process.env.GIGYA_API_SECRET || ''
 const GIGYA_API_BASE = 'https://accounts.eu1.gigya.com'
 
+/**
+ * Permission Groups berechnen basierend auf User-Daten
+ * 
+ * @param user - Gigya User Objekt aus Session
+ * @returns Array von Permission Group Namen
+ */
+function calculatePermissionGroups(user: any): string[] {
+  const groups: string[] = []
+  
+  // Base: Alle eingeloggten User
+  if (user.UID) {
+    groups.push('authenticated')
+  }
+  
+  // Customer Group aus Commerce Cloud oder Gigya Data
+  const customerGroup = user.data?.customerGroup?.toLowerCase()
+  if (customerGroup) {
+    groups.push('customer')
+    groups.push(customerGroup) // z.B. 'b2b', 'b2c', 'premium'
+  }
+  
+  // Custom Permissions aus Gigya Data
+  if (user.data?.permissions && Array.isArray(user.data.permissions)) {
+    groups.push(...user.data.permissions)
+  }
+  
+  // Email Domain Check (Lenzing Mitarbeiter)
+  if (user.email && user.email.endsWith('@lenzing.com')) {
+    groups.push('internal')
+  }
+  
+  // Verified Account
+  if (user.profile?.verified || user.isVerified) {
+    groups.push('verified')
+  }
+  
+  return [...new Set(groups)] // Duplikate entfernen
+}
+
 interface LoginRequest {
   loginToken: string
 }
@@ -23,7 +62,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * GET /auth/session
    * 
    * Session-Status abrufen
-   * Prüft ob User eingeloggt ist und gibt Profil zurück
+   * Prüft ob User eingeloggt ist und gibt Profil + Permission Groups zurück
    */
   fastify.get('/auth/session', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -32,22 +71,39 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (!session || !session.user || !session.user.UID) {
         return reply.send({
           isLoggedIn: false,
-          profile: null,
+          user: null,
+          permissionGroups: [],
+          customerGroup: null,
           error: null
         })
       }
 
+      // Permission Groups berechnen
+      const permissionGroups = calculatePermissionGroups(session.user)
+      
+      // Customer Group aus Commerce Cloud (falls vorhanden)
+      const customerGroup = session.user.data?.customerGroup || null
+
       // Session ist aktiv
       return reply.send({
         isLoggedIn: true,
-        profile: session.user,
+        user: {
+          uid: session.user.UID,
+          email: session.user.email,
+          firstName: session.user.firstName,
+          lastName: session.user.lastName
+        },
+        permissionGroups,
+        customerGroup,
         error: null
       })
     } catch (error: any) {
       fastify.log.error('Session check error:', error)
       return reply.status(500).send({
         isLoggedIn: false,
-        profile: null,
+        user: null,
+        permissionGroups: [],
+        customerGroup: null,
         error: 'Session-Check fehlgeschlagen'
       })
     }
