@@ -12,6 +12,7 @@ import { registerOidcDiscoveryProxyRoutes } from "./routes/oidcDiscoveryProxy.js
 import { SessionStore } from "./services/session-store.js";
 import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
+import { registerJWTAuthFlowRoutes } from "./routes/jwt-auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 import {
   getCORSConfig,
@@ -266,6 +267,11 @@ export async function buildServerEnhanced() {
 
   // Authentication flow routes
   await registerAuthFlowRoutes(app, env, sessionStore);
+  
+  // JWT Authentication routes with /auth prefix
+  await app.register(async (authApp) => {
+    await registerJWTAuthFlowRoutes(authApp, env, sessionStore);
+  }, { prefix: '/auth' });
   
   // Protected routes (authentication required)
   await registerUserProtectedRoutes(app, sessionStore, cdcAuth);
