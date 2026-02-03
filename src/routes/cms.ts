@@ -134,4 +134,45 @@ export async function registerCMSRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Get Base Sites
+  fastify.get('/cms/basesites', async (
+    request: FastifyRequest<{ Querystring: { lang?: string; curr?: string } }>,
+    reply: FastifyReply
+  ) => {
+    try {
+      const { lang = 'en', curr = 'USD' } = request.query;
+      const baseSites = await cmsService.getBaseSites(lang, curr);
+      return reply.send(baseSites);
+    } catch (error: any) {
+      request.log.error('Error fetching base sites:', error);
+      return reply.code(error.response?.status || 500).send({
+        error: error.message || 'Failed to fetch base sites',
+      });
+    }
+  });
+
+  // Get Media (Proxy)
+  fastify.get('/cms/media/:filename', async (
+    request: FastifyRequest<{ 
+      Params: { filename: string }; 
+      Querystring: { context?: string } 
+    }>,
+    reply: FastifyReply
+  ) => {
+    try {
+      const { filename } = request.params;
+      const { context } = request.query;
+      
+      const media = await cmsService.getMedia(filename, context);
+      
+      reply.header('Content-Type', media.contentType);
+      return reply.send(media.data);
+    } catch (error: any) {
+      request.log.error('Error fetching media:', error);
+      return reply.code(error.response?.status || 500).send({
+        error: error.message || 'Failed to fetch media',
+      });
+    }
+  });
 }

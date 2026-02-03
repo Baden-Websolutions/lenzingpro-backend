@@ -139,6 +139,41 @@ export class CMSService {
   }
 
   /**
+   * Get base sites
+   */
+  async getBaseSites(
+    lang: string = 'en',
+    curr: string = 'USD'
+  ): Promise<any> {
+    const response = await axios.get(`${this.baseUrl}/occ/v2/basesites`, {
+      params: {
+        fields: 'FULL,baseSites(urlEncodingAttributes)',
+        lang,
+        curr,
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Get media file (proxy)
+   */
+  async getMedia(filename: string, context?: string): Promise<any> {
+    const url = context 
+      ? `${this.baseUrl}/medias/${filename}?context=${context}`
+      : `${this.baseUrl}/medias/${filename}`;
+    
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+    });
+    
+    return {
+      data: response.data,
+      contentType: response.headers['content-type'],
+    };
+  }
+
+  /**
    * Get media URL
    */
   getMediaUrl(mediaPath: string): string {
