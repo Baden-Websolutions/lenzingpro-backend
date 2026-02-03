@@ -51,20 +51,44 @@ export class CMSService {
   }
 
   /**
-   * Get CMS Page by label or ID
+   * Get CMS Page by label/ID or code
+   * Supports ContentPage, CategoryPage, and ProductPage
    */
   async getPage(
-    pageLabelOrId: string,
-    lang: string = 'en',
-    curr: string = 'EUR'
+    options: {
+      pageLabelOrId?: string;
+      pageType?: 'ContentPage' | 'CategoryPage' | 'ProductPage';
+      code?: string;
+      lang?: string;
+      curr?: string;
+    }
   ): Promise<CMSPageResponse> {
+    const {
+      pageLabelOrId,
+      pageType = 'ContentPage',
+      code,
+      lang = 'en',
+      curr = 'EUR'
+    } = options;
+
+    const params: any = {
+      pageType,
+      lang,
+      curr,
+    };
+
+    // ContentPage uses pageLabelOrId
+    if (pageLabelOrId) {
+      params.pageLabelOrId = pageLabelOrId;
+    }
+
+    // CategoryPage/ProductPage uses code
+    if (code) {
+      params.code = code;
+    }
+
     const response = await this.client.get('/cms/pages', {
-      params: {
-        pageType: 'ContentPage',
-        pageLabelOrId,
-        lang,
-        curr,
-      },
+      params,
     });
 
     return response.data;

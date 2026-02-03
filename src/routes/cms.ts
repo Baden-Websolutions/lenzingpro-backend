@@ -2,7 +2,9 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { cmsService } from '../services/cms.js';
 
 interface CMSPageQuery {
-  pageLabelOrId: string;
+  pageLabelOrId?: string;
+  pageType?: 'ContentPage' | 'CategoryPage' | 'ProductPage';
+  code?: string;
   lang?: string;
   curr?: string;
 }
@@ -19,21 +21,35 @@ interface CMSTranslationParams {
 }
 
 export async function registerCMSRoutes(fastify: FastifyInstance) {
-  // Get CMS Page
+  // Get CMS Page (ContentPage, CategoryPage, ProductPage)
   fastify.get('/cms/pages', async (
     request: FastifyRequest<{ Querystring: CMSPageQuery }>,
     reply: FastifyReply
   ) => {
     try {
-      const { pageLabelOrId, lang = 'en', curr = 'EUR' } = request.query;
+      const { 
+        pageLabelOrId, 
+        pageType = 'ContentPage', 
+        code, 
+        lang = 'en', 
+        curr = 'EUR' 
+      } = request.query;
 
-      if (!pageLabelOrId) {
+      // Validation: Either pageLabelOrId OR code required
+      if (!pageLabelOrId && !code) {
         return reply.code(400).send({
-          error: 'Missing required parameter: pageLabelOrId',
+          error: 'Missing required parameter: pageLabelOrId or code',
         });
       }
 
-      const page = await cmsService.getPage(pageLabelOrId, lang, curr);
+      const page = await cmsService.getPage({
+        pageLabelOrId,
+        pageType,
+        code,
+        lang,
+        curr,
+      });
+
       return reply.send(page);
     } catch (error: any) {
       request.log.error('Error fetching CMS page:', error);
