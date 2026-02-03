@@ -14,6 +14,7 @@ import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerJWTAuthFlowRoutes } from "./routes/jwt-auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
+import { registerCMSRoutes } from "./routes/cms.js";
 import {
   getCORSConfig,
   corsSecurityHook,
@@ -275,6 +276,9 @@ export async function buildServerEnhanced() {
   
   // Protected routes (authentication required)
   await registerUserProtectedRoutes(app, sessionStore, cdcAuth);
+  
+  // CMS routes (public)
+  await registerCMSRoutes(app);
 
   // ============================================================================
   // STARTUP VALIDATION
