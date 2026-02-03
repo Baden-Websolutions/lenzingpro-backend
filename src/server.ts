@@ -14,6 +14,7 @@ import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 import authRoutes from "./routes/auth.js";
+import { registerCMSRoutes } from "./routes/cms.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -75,6 +76,9 @@ export async function buildServer() {
   
   // Register session-based auth routes
   await app.register(authRoutes, { prefix: '/auth' });
+  
+  // Register CMS routes
+  await registerCMSRoutes(app);
 
   return { app, env };
 }

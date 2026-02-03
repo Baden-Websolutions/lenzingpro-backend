@@ -1,0 +1,149 @@
+import axios, { AxiosInstance } from 'axios';
+
+/**
+ * CMS Service for Commerce Cloud
+ * 
+ * Fetches CMS pages, components, and content from SAP Commerce Cloud OCC API
+ */
+
+interface CMSPageResponse {
+  uid: string;
+  name: string;
+  typeCode: string;
+  template: string;
+  contentSlots?: any[];
+  [key: string]: any;
+}
+
+interface CMSComponentResponse {
+  component: Array<{
+    uid: string;
+    typeCode: string;
+    name?: string;
+    [key: string]: any;
+  }>;
+}
+
+interface CMSLanguage {
+  isocode: string;
+  name: string;
+  nativeName: string;
+  active: boolean;
+}
+
+export class CMSService {
+  private client: AxiosInstance;
+  private baseUrl: string;
+  private baseSiteId: string;
+
+  constructor() {
+    this.baseUrl = process.env.COMMERCE_CLOUD_API_URL || 
+      'https://api.cqgm99dz6h-lenzingag1-p1-public.model-t.cc.commerce.ondemand.com';
+    this.baseSiteId = process.env.COMMERCE_CLOUD_BASE_SITE || 'portal';
+
+    this.client = axios.create({
+      baseURL: `${this.baseUrl}/occ/v2/${this.baseSiteId}`,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  /**
+   * Get CMS Page by label or ID
+   */
+  async getPage(
+    pageLabelOrId: string,
+    lang: string = 'en',
+    curr: string = 'EUR'
+  ): Promise<CMSPageResponse> {
+    const response = await this.client.get('/cms/pages', {
+      params: {
+        pageType: 'ContentPage',
+        pageLabelOrId,
+        lang,
+        curr,
+      },
+    });
+
+    return response.data;
+  }
+
+  /**
+   * Get multiple CMS Components by IDs
+   */
+  async getComponents(
+    componentIds: string[],
+    lang: string = 'en',
+    curr: string = 'EUR'
+  ): Promise<CMSComponentResponse> {
+    const response = await this.client.get('/cms/components', {
+      params: {
+        fields: 'DEFAULT',
+        currentPage: 0,
+        pageSize: componentIds.length,
+        componentIds: componentIds.join(','),
+        lang,
+        curr,
+      },
+    });
+
+    return response.data;
+  }
+
+  /**
+   * Get available languages
+   */
+  async getLanguages(
+    lang: string = 'en',
+    curr: string = 'EUR'
+  ): Promise<{ languages: CMSLanguage[] }> {
+    const response = await this.client.get('/languages', {
+      params: { lang, curr },
+    });
+
+    return response.data;
+  }
+
+  /**
+   * Get translation file
+   */
+  async getTranslation(
+    lang: string = 'en',
+    namespace: string = 'common'
+  ): Promise<Record<string, string>> {
+    const response = await this.client.get(`/translation/${lang}/${namespace}.json`);
+    return response.data;
+  }
+
+  /**
+   * Get CDC (Gigya) configuration
+   */
+  async getCDCConfig(): Promise<any> {
+    const response = await axios.get(`${this.baseUrl}/occ/v2/configuration/cdc`);
+    return response.data;
+  }
+
+  /**
+   * Get Analytics configuration
+   */
+  async getAnalyticsConfig(
+    lang: string = 'en',
+    curr: string = 'USD'
+  ): Promise<any> {
+    const response = await axios.get(`${this.baseUrl}/occ/v2/configuration/analytics`, {
+      params: { lang, curr },
+    });
+    return response.data;
+  }
+
+  /**
+   * Get media URL
+   */
+  getMediaUrl(mediaPath: string): string {
+    return `${this.baseUrl}${mediaPath}`;
+  }
+}
+
+export const cmsService = new CMSService();
