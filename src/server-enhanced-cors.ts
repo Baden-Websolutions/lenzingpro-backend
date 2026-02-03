@@ -255,7 +255,12 @@ export async function buildServerEnhanced() {
   
   // Public routes (no authentication required)
   await registerCatalogRoutes(app, commerce);
-  await registerSessionRoutes(app, commerce);
+  
+  // Session routes with /auth prefix
+  await app.register(async (authApp) => {
+    await registerSessionRoutes(authApp, commerce);
+  }, { prefix: '/auth' });
+  
   await registerOidcRoutes(app, env);
   await registerOidcDiscoveryProxyRoutes(app);
 
