@@ -68,7 +68,78 @@ export default async function authRoutes(fastify: FastifyInstance) {
     try {
       const session = request.session as any
       
+      // 1. Prüfen ob Backend Session existiert
       if (!session || !session.user || !session.user.UID) {
+        // 2. Keine Backend Session → Gigya Cookie prüfen
+        fastify.log.info('No backend session found, checking Gigya cookies...')
+        
+        // Gigya Cookie extrahieren (glt_* oder gmid)
+        const cookies = request.headers.cookie || ''
+        const gigyaCookieMatch = cookies.match(/glt_[^=]+=([^;]+)/)
+        const gmidMatch = cookies.match(/gmid=([^;]+)/)
+        
+        if (gigyaCookieMatch || gmidMatch) {
+          fastify.log.info('Gigya cookie found, validating with Gigya API...')
+          
+          try {
+            // Gigya API: accounts.getAccountInfo mit Cookie
+            const gigyaResponse = await axios.post(
+              `${GIGYA_API_BASE}/accounts.getAccountInfo`,
+              new URLSearchParams({
+                apiKey: GIGYA_API_KEY,
+                secret: GIGYA_API_SECRET,
+              }),
+              {
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'Cookie': cookies
+                }
+              }
+            )
+            
+            const gigyaData = gigyaResponse.data
+            
+            if (gigyaData.errorCode === 0 && gigyaData.UID) {
+              fastify.log.info('Gigya session valid, creating backend session for UID:', gigyaData.UID)
+              
+              // Backend Session automatisch erstellen
+              session.user = {
+                UID: gigyaData.UID,
+                email: gigyaData.profile?.email,
+                firstName: gigyaData.profile?.firstName,
+                lastName: gigyaData.profile?.lastName,
+                profile: gigyaData.profile,
+                data: gigyaData.data
+              }
+              
+              await session.save()
+              
+              // Permission Groups berechnen
+              const permissionGroups = calculatePermissionGroups(session.user)
+              const customerGroup = session.user.data?.customerGroup || null
+              
+              // Session zurückgeben
+              return reply.send({
+                isLoggedIn: true,
+                user: {
+                  uid: session.user.UID,
+                  email: session.user.email,
+                  firstName: session.user.firstName,
+                  lastName: session.user.lastName
+                },
+                permissionGroups,
+                customerGroup,
+                error: null
+              })
+            } else {
+              fastify.log.info('Gigya session invalid or expired:', gigyaData.errorCode)
+            }
+          } catch (gigyaError: any) {
+            fastify.log.error('Gigya API error:', gigyaError.message)
+          }
+        }
+        
+        // 3. Keine gültige Gigya Session → Not logged in
         return reply.send({
           isLoggedIn: false,
           user: null,
