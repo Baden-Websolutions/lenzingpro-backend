@@ -38,7 +38,7 @@ export class CMSService {
 
   constructor() {
     this.baseUrl = process.env.COMMERCE_CLOUD_API_URL || 
-      'https://api.cqgm99dz6h-lenzingag1-p1-public.model-t.cc.commerce.ondemand.com';
+      'https://api.cqgm99dz6h-lenzingag1-d1-public.model-t.cc.commerce.ondemand.com';
     this.baseSiteId = process.env.COMMERCE_CLOUD_BASE_SITE || 'portal';
 
     this.client = axios.create({
@@ -75,6 +75,7 @@ export class CMSService {
       pageType,
       lang,
       curr,
+      fields: 'FULL', // Get all fields including classifications
     };
 
     // ContentPage uses pageLabelOrId
