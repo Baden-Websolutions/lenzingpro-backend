@@ -15,6 +15,7 @@ import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 import authRoutes from "./routes/auth.js";
 import { registerCMSRoutes } from "./routes/cms.js";
+import gigyaDevRoutes from "./routes/gigya_dev.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -79,6 +80,9 @@ export async function buildServer() {
   
   // Register CMS routes
   await registerCMSRoutes(app);
+  
+  // Register Gigya Dev routes (Python SDK)
+  await app.register(gigyaDevRoutes, { prefix: '/gigya-dev' });
 
   return { app, env };
 }
