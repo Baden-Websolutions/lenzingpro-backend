@@ -28,3 +28,15 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# PM2
+ecosystem.config.js
+.pm2/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Python (for Gigya SDK)
+__pycache__/
+*.py[cod]
+*$py.class
