@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
+import session from "@fastify/session";
 import { loadEnv } from "./config/env.js";
 import { CommerceClient } from "./services/commerce.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
@@ -40,6 +41,17 @@ export async function buildServer() {
   await app.register(cookie, {
     secret: process.env.COOKIE_SECRET || "lenzingpro-cookie-secret-change-in-production",
     parseOptions: {}
+  });
+
+  // Session support for /auth routes
+  await app.register(session, {
+    secret: process.env.SESSION_SECRET || "lenzingpro-session-secret-change-in-production-min-32-chars",
+    cookie: {
+      secure: env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    },
+    saveUninitialized: false
   });
 
   // CORS configuration
