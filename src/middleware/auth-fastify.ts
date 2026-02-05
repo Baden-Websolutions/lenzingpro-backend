@@ -3,11 +3,11 @@ import type { SessionStore } from "../services/session-store.js";
 import type { SessionData, CDCUserInfo } from "../services/cdc-auth.js";
 
 /**
- * Extend Fastify Request to include session data
+ * Extend Fastify Request to include user data
+ * Note: session is already declared by @fastify/session plugin
  */
 declare module "fastify" {
   interface FastifyRequest {
-    session?: SessionData;
     user?: CDCUserInfo;
   }
 }
