@@ -102,21 +102,23 @@ export async function registerCMSRoutes(fastify: FastifyInstance) {
   });
 
   // Get Translation
-  fastify.get('/cms/translation/:lang/:namespace', async (
-    request: FastifyRequest<{ Params: CMSTranslationParams }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { lang, namespace } = request.params;
-      const translation = await cmsService.getTranslation(lang, namespace);
-      return reply.send(translation);
-    } catch (error: any) {
-      request.log.error('Error fetching translation:', error);
-      return reply.code(error.response?.status || 500).send({
-        error: error.message || 'Failed to fetch translation',
-      });
-    }
-  });
+  // TODO: Multi-language support - to be activated later
+  // Translations will be extracted from CC API page context
+  // fastify.get('/cms/translation/:lang/:namespace', async (
+  //   request: FastifyRequest<{ Params: CMSTranslationParams }>,
+  //   reply: FastifyReply
+  // ) => {
+  //   try {
+  //     const { lang, namespace } = request.params;
+  //     const translation = await cmsService.getTranslation(lang, namespace);
+  //     return reply.send(translation);
+  //   } catch (error: any) {
+  //     request.log.error('Error fetching translation:', error);
+  //     return reply.code(error.response?.status || 500).send({
+  //       error: error.message || 'Failed to fetch translation',
+  //     });
+  //   }
+  // });
 
   // Get CDC Config
   fastify.get('/cms/config/cdc', async (

@@ -133,14 +133,17 @@ export class CMSService {
 
   /**
    * Get translation file
+   * 
+   * TODO: Multi-language support - to be activated later
+   * Translations will be extracted from CC API page context
    */
-  async getTranslation(
-    lang: string = 'en',
-    namespace: string = 'common'
-  ): Promise<Record<string, string>> {
-    const response = await this.client.get(`/translation/${lang}/${namespace}.json`);
-    return response.data;
-  }
+  // async getTranslation(
+  //   lang: string = 'en',
+  //   namespace: string = 'common'
+  // ): Promise<Record<string, string>> {
+  //   const response = await this.client.get(`/translation/${lang}/${namespace}.json`);
+  //   return response.data;
+  // }
 
   /**
    * Get CDC (Gigya) configuration
