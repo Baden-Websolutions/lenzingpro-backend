@@ -38,8 +38,7 @@ export async function registerUserProtectedRoutes(
         return reply.send({
           user: request.user,
           session: {
-            expiresAt: request.session?.expiresAt,
-            hasRefreshToken: !!request.session?.refreshToken,
+            exists: !!request.session,
           },
         });
       } catch (error) {
