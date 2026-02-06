@@ -1,4 +1,6 @@
 import Gigya from "gigya";
+// @ts-ignore - Gigya library has incorrect type definitions
+const GigyaConstructor = (Gigya as any).default || Gigya;
 import { createPublicKey } from "crypto";
 import { jwtVerify } from "jose";
 import type { AppEnv } from "../config/env.js";
@@ -11,7 +13,7 @@ export class GigyaRestService {
     this.env = env;
     
     // Initialize Gigya SDK with API Key + Secret
-    this.gigya = new Gigya(
+    this.gigya = new GigyaConstructor(
       env.GIGYA_API_KEY,
       env.GIGYA_DATA_CENTER as any, // Type cast for DataCenter enum
       env.GIGYA_SECRET
