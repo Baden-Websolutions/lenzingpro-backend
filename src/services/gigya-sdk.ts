@@ -176,7 +176,7 @@ export class GigyaSDK {
     const url = `https://${domain}/${apiMethod}`;
 
     // Add required parameters
-    const timestamp = Math.floor(Date.now() / 1000);
+    const timestamp = String(Math.floor(Date.now() / 1000));
     const nonce = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
     const requestParams: Record<string, string> = {
