@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
-import session from "@fastify/session";
+// import session from "@fastify/session"; // REMOVED: Using @fastify/secure-session instead
 import secureSession from "@fastify/secure-session";
 import { loadEnv } from "./config/env.js";
 import { CommerceClient } from "./services/commerce.js";
@@ -46,7 +46,10 @@ export async function buildServer() {
     parseOptions: {}
   });
 
-  // Session support for /auth routes (old system)
+  // Session support for /auth routes (old system) - COMMENTED OUT
+  // Using @fastify/secure-session for CDC authentication instead
+  // To re-enable old cookie-based session system, uncomment below and reinstall @fastify/session
+  /*
   await app.register(session, {
     secret: process.env.SESSION_SECRET || "lenzingpro-session-secret-change-in-production-min-32-chars",
     cookie: {
@@ -56,6 +59,7 @@ export async function buildServer() {
     },
     saveUninitialized: false
   });
+  */
 
   // Secure session for CDC authentication (new system)
   await app.register(secureSession, {
