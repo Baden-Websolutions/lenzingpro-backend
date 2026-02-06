@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
+import secureSession from "@fastify/secure-session";
 import { loadEnv } from "./config/env.js";
 import { CommerceClient } from "./services/commerce.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
@@ -13,6 +14,8 @@ import { SessionStore } from "./services/session-store.js";
 import { CDCAuthService } from "./services/cdc-auth.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
+import { GigyaRestService } from "./services/gigya-rest.js";
+import { registerSessionCdcRoutes } from "./routes/session-cdc.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -39,6 +42,18 @@ export async function buildServer() {
     parseOptions: {}
   });
 
+  // Secure session for CDC authentication
+  await app.register(secureSession, {
+    secret: env.SESSION_SECRET,
+    salt: env.SESSION_SALT,
+    cookie: {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: env.NODE_ENV === "production"
+    }
+  });
+
   // CORS configuration
   const allowed = env.CORS_ALLOW_ORIGINS.split(",").map(s => s.trim()).filter(Boolean);
   await app.register(cors, {
@@ -62,6 +77,9 @@ export async function buildServer() {
   // Initialize CDC Auth Service
   const cdcAuth = new CDCAuthService(env);
 
+  // Initialize Gigya REST Service
+  const gigyaRest = new GigyaRestService(env);
+
   // Register routes
   await registerCatalogRoutes(app, commerce);
   await registerSessionRoutes(app, commerce);
@@ -71,6 +89,9 @@ export async function buildServer() {
   // Register new authentication flow routes
   await registerAuthFlowRoutes(app, env, sessionStore);
   await registerUserProtectedRoutes(app, sessionStore, cdcAuth);
+
+  // Register CDC session routes
+  await registerSessionCdcRoutes(app, gigyaRest);
 
   return { app, env };
 }

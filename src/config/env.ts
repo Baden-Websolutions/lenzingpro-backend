@@ -19,6 +19,16 @@ const EnvSchema = z.object({
   CDC_OIDC_CLIENT_ID: z.string().min(1).default("ABbd672Koy3U"),
   CDC_SECRET_KEY: z.string().optional(), // Base64-encoded secret key for signature validation
 
+  // Gigya REST API Configuration
+  GIGYA_API_KEY: z.string().min(1).default("4_XQnjjmLc16oS7vqA6DvIAg"),
+  GIGYA_SECRET: z.string().min(1),
+  GIGYA_USER_KEY: z.string().min(1).default("ABbd672Koy3U"),
+  GIGYA_DATA_CENTER: z.string().default("eu1"),
+
+  // Session Configuration
+  SESSION_SECRET: z.string().min(32),
+  SESSION_SALT: z.string().min(16),
+
   // Frontend & Callback Configuration
   FRONTEND_BASE_URL: z.string().url().default("https://mtna-lp.dev"),
   OIDC_CALLBACK_PATH: z.string().default("/oidc/callback"),
