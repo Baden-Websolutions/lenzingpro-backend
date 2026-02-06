@@ -6,6 +6,46 @@ export async function registerSessionCdcRoutes(
   gigyaRest: GigyaRestService
 ) {
   /**
+   * POST /session/login
+   * Accepts loginToken from Gigya onLogin event, validates it, and starts app session
+   */
+  app.post("/session/login", async (request, reply) => {
+    const body = request.body as { loginToken?: string; uid?: string };
+    const { loginToken, uid } = body;
+
+    if (!loginToken || typeof loginToken !== "string") {
+      return reply.code(400).send({ error: "missing loginToken" });
+    }
+
+    if (!uid || typeof uid !== "string") {
+      return reply.code(400).send({ error: "missing uid" });
+    }
+
+    try {
+      // Verify loginToken with Gigya
+      const accountInfo = await gigyaRest.getAccountInfo(uid, loginToken);
+
+      if (!accountInfo.UID) {
+        return reply.code(401).send({ error: "invalid loginToken" });
+      }
+
+      // Set session data
+      request.session.set("uid", uid);
+      request.session.set("loginToken", loginToken);
+
+      app.log.info({ uid }, "Session established via loginToken");
+
+      return reply.send({ ok: true, uid });
+    } catch (error) {
+      app.log.error({ error }, "LoginToken verification failed");
+      return reply.code(401).send({ 
+        error: "invalid loginToken",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
    * POST /session/cdc
    * Accepts CDC JWT from frontend, validates it, and starts app session
    */

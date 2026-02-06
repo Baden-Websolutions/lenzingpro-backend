@@ -44,12 +44,19 @@ export class GigyaRestService {
 
   /**
    * Get account info from CDC
+   * @param uid User ID
+   * @param loginToken Optional loginToken for authentication
    */
-  async getAccountInfo(uid: string) {
+  async getAccountInfo(uid: string, loginToken?: string) {
     try {
-      const response = await this.gigya.accounts.getAccountInfo({
-        UID: uid
-      });
+      const params: any = { UID: uid };
+      
+      // If loginToken is provided, use it for authentication
+      if (loginToken) {
+        params.oauth_token = loginToken;
+      }
+      
+      const response = await this.gigya.accounts.getAccountInfo(params);
       return response;
     } catch (error) {
       throw new Error(`Failed to get account info: ${error instanceof Error ? error.message : String(error)}`);
