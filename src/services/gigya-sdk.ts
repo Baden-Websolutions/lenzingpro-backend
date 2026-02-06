@@ -176,13 +176,13 @@ export class GigyaSDK {
     const url = `https://${domain}/${apiMethod}`;
 
     // Add required parameters
-    const timestamp = Math.floor(Date.now() / 1000);
+    const timestamp = String(Math.floor(Date.now() / 1000));
     const nonce = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-    const requestParams: Record<string, any> = {
+    const requestParams: Record<string, string> = {
       ...params,
       apiKey: this.apiKey,
-      timestamp: timestamp.toString(),
+      timestamp,
       nonce,
       format: "json",
       sdk: "typescript_custom",

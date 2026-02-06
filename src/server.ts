@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
 import session from "@fastify/session";
+import secureSession from "@fastify/secure-session";
 import { loadEnv } from "./config/env.js";
 import { CommerceClient } from "./services/commerce.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
@@ -17,6 +18,8 @@ import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 import authRoutes from "./routes/auth.js";
 import { registerCMSRoutes } from "./routes/cms.js";
 import gigyaDevRoutes from "./routes/gigya_dev.js";
+import { GigyaRestService } from "./services/gigya-rest.js";
+import { registerSessionCdcRoutes } from "./routes/session-cdc.js";
 
 export async function buildServer() {
   const env = loadEnv();
@@ -43,7 +46,7 @@ export async function buildServer() {
     parseOptions: {}
   });
 
-  // Session support for /auth routes
+  // Session support for /auth routes (old system)
   await app.register(session, {
     secret: process.env.SESSION_SECRET || "lenzingpro-session-secret-change-in-production-min-32-chars",
     cookie: {
@@ -52,6 +55,18 @@ export async function buildServer() {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     },
     saveUninitialized: false
+  });
+
+  // Secure session for CDC authentication (new system)
+  await app.register(secureSession, {
+    secret: env.SESSION_SECRET,
+    salt: env.SESSION_SALT,
+    cookie: {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: env.NODE_ENV === "production"
+    }
   });
 
   // CORS configuration
@@ -77,9 +92,17 @@ export async function buildServer() {
   // Initialize CDC Auth Service
   const cdcAuth = new CDCAuthService(env);
 
+  // Initialize Gigya REST Service
+  const gigyaRest = new GigyaRestService(env);
+
   // Register routes
   await registerCatalogRoutes(app, commerce);
-  await registerSessionRoutes(app, commerce);
+  
+  // OLD COOKIE-BASED SESSION SYSTEM (DEPRECATED)
+  // Uncomment the line below to switch back to the old cookie-based authentication system
+  // This uses session_access/session_refresh cookies instead of Gigya CDC
+  // Routes: /auth/session/check, /session, /session/logout
+  // await registerSessionRoutes(app, commerce);
   await registerOidcRoutes(app, env);
   await registerOidcDiscoveryProxyRoutes(app);
 
@@ -95,6 +118,9 @@ export async function buildServer() {
   
   // Register Gigya Dev routes (Python SDK)
   await app.register(gigyaDevRoutes, { prefix: '/gigya-dev' });
+
+  // Register CDC session routes (NEW GIGYA CDC SYSTEM - ACTIVE)
+  await registerSessionCdcRoutes(app, gigyaRest);
 
   return { app, env };
 }

@@ -4,7 +4,7 @@ import type { SessionData, CDCUserInfo } from "../services/cdc-auth.js";
 
 /**
  * Extend Fastify Request to include user data
- * Note: session is already declared by @fastify/session plugin
+ * Note: session is provided by both @fastify/session (old) and @fastify/secure-session (new CDC)
  */
 declare module "fastify" {
   interface FastifyRequest {
