@@ -137,7 +137,7 @@ export class CDCAuthService {
       body: params,
     });
 
-    const json = await resp.json();
+    const json = await resp.json() as any;
 
     if (!resp.ok) {
       throw new Error(
@@ -166,7 +166,7 @@ export class CDCAuthService {
       body: params,
     });
 
-    const json = await resp.json();
+    const json = await resp.json() as any;
 
     if (!resp.ok) {
       throw new Error(
@@ -244,7 +244,7 @@ export class CDCAuthService {
       body: params,
     });
 
-    const json = await resp.json();
+    const json = await resp.json() as any;
 
     if (!resp.ok || json.errorCode !== 0) {
       throw new Error(`JWT request failed: ${json.errorMessage || resp.statusText}`);

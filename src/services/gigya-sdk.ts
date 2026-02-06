@@ -179,10 +179,10 @@ export class GigyaSDK {
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-    const requestParams = {
+    const requestParams: Record<string, string> = {
       ...params,
       apiKey: this.apiKey,
-      timestamp: timestamp.toString(),
+      timestamp,
       nonce,
       format: "json",
       sdk: "typescript_custom",
