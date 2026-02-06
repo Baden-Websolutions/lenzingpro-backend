@@ -1,7 +1,7 @@
 import Gigya from "gigya";
 // @ts-ignore - Gigya library has incorrect type definitions
 const GigyaConstructor = (Gigya as any).default || Gigya;
-import { createPublicKey } from "crypto";
+// createPublicKey not needed for HS256 verification
 import { jwtVerify } from "jose";
 import type { AppEnv } from "../config/env.js";
 
@@ -21,29 +21,19 @@ export class GigyaRestService {
   }
 
   /**
-   * Verify CDC JWT using accounts.getJWTPublicKey
+   * Verify CDC JWT using HMAC-SHA256 (HS256) with Gigya Secret
+   * Gigya CDC uses HS256 algorithm, not RS256
    */
   async verifyCdcJwt(idToken: string) {
     try {
-      // Get CDC public key for JWT verification
-      const keyRes = await this.gigya.accounts.getJWTPublicKey({
-        apiKey: this.env.GIGYA_API_KEY
-      });
-
-      // Extract PEM from response (field name varies by SDK version)
-      const pem = keyRes.publicKey || keyRes.PublicKey || keyRes.key || keyRes;
-      
-      if (!pem || typeof pem !== "string") {
-        throw new Error("Could not obtain CDC JWT public key (PEM).");
-      }
-
-      const publicKey = createPublicKey(pem);
+      // Gigya uses HS256 (HMAC-SHA256) for JWT signing
+      // Verify with the Gigya Secret, not a public key
+      const secret = new TextEncoder().encode(this.env.GIGYA_SECRET);
 
       // Verify JWT with jose
-      const { payload, protectedHeader } = await jwtVerify(idToken, publicKey, {
-        // Optional: Add issuer/audience validation
-        // issuer: `https://accounts.${this.env.GIGYA_DATA_CENTER}.gigya.com`,
-        // audience: this.env.GIGYA_API_KEY
+      const { payload, protectedHeader } = await jwtVerify(idToken, secret, {
+        issuer: `https://fidm.${this.env.GIGYA_DATA_CENTER}.gigya.com/oidc/op/v1.0/${this.env.GIGYA_API_KEY}`,
+        audience: this.env.GIGYA_API_KEY
       });
 
       return { payload, protectedHeader };
