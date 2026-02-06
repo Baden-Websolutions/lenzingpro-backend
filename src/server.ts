@@ -82,7 +82,12 @@ export async function buildServer() {
 
   // Register routes
   await registerCatalogRoutes(app, commerce);
-  await registerSessionRoutes(app, commerce);
+  
+  // OLD COOKIE-BASED SESSION SYSTEM (DEPRECATED)
+  // Uncomment the line below to switch back to the old cookie-based authentication system
+  // This uses session_access/session_refresh cookies instead of Gigya CDC
+  // Routes: /auth/session/check, /session, /session/logout
+  // await registerSessionRoutes(app, commerce);
   await registerOidcRoutes(app, env);
   await registerOidcDiscoveryProxyRoutes(app);
 

@@ -109,4 +109,18 @@ export async function registerSessionCdcRoutes(
       uid: uid || null
     });
   });
+
+  /**
+   * GET /auth/session/check
+   * Backward compatibility endpoint for frontend AccountMenu component
+   * Returns isLoggedIn instead of authenticated for legacy compatibility
+   */
+  app.get("/auth/session/check", async (request, reply) => {
+    const uid = request.session.get("uid");
+
+    return reply.send({
+      isLoggedIn: !!uid,
+      uid: uid || null
+    });
+  });
 }
