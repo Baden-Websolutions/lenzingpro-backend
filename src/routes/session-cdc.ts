@@ -1,6 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import type { GigyaRestService } from "../services/gigya-rest.js";
 
+// Session data interface
+interface SessionData {
+  uid?: string;
+  loginToken?: string;
+  cdc?: {
+    iat: number;
+    exp: number;
+  };
+}
+
 export async function registerSessionCdcRoutes(
   app: FastifyInstance,
   gigyaRest: GigyaRestService
@@ -29,9 +39,9 @@ export async function registerSessionCdcRoutes(
         return reply.code(401).send({ error: "invalid loginToken" });
       }
 
-      // Set session data
-      request.session.set("uid", uid);
-      request.session.set("loginToken", loginToken);
+      // Set session data - @fastify/secure-session stores everything in one object
+      const sessionData: SessionData = { uid, loginToken };
+      request.session.set("cookie", sessionData);
 
       app.log.info({ uid }, "Session established via loginToken");
 
@@ -69,11 +79,14 @@ export async function registerSessionCdcRoutes(
       }
 
       // Set session data
-      request.session.set("uid", uid);
-      request.session.set("cdc", {
-        iat: (payload as any).iat,
-        exp: (payload as any).exp
-      });
+      const sessionData: SessionData = {
+        uid,
+        cdc: {
+          iat: (payload as any).iat,
+          exp: (payload as any).exp
+        }
+      };
+      request.session.set("cookie", sessionData);
 
       app.log.info({ uid }, "CDC session established");
 
@@ -81,86 +94,106 @@ export async function registerSessionCdcRoutes(
     } catch (error) {
       app.log.error({ error }, "CDC JWT verification failed");
       return reply.code(401).send({ 
-        error: "invalid token",
+        error: "invalid JWT",
         message: error instanceof Error ? error.message : String(error)
       });
     }
   });
 
   /**
-   * GET /session/me
-   * Returns current user from session (optionally fetches fresh data from CDC)
+   * GET /session/check
+   * Returns current session status
    */
-  app.get("/session/me", async (request, reply) => {
-    const uid = request.session.get("uid");
+  app.get("/session/check", async (request, reply) => {
+    const sessionData = request.session.get("cookie") as SessionData | undefined;
+    const uid = sessionData?.uid;
 
     if (!uid) {
-      return reply.code(401).send({ authenticated: false });
+      return reply.send({ authenticated: false, uid: null });
+    }
+
+    return reply.send({ authenticated: true, uid });
+  });
+
+  /**
+   * GET /session/me
+   * Returns current user profile from Gigya
+   */
+  app.get("/session/me", async (request, reply) => {
+    const sessionData = request.session.get("cookie") as SessionData | undefined;
+    const uid = sessionData?.uid;
+
+    if (!uid) {
+      return reply.code(401).send({ error: "not authenticated" });
     }
 
     try {
-      // Optional: Fetch fresh account data from CDC
       const account = await gigyaRest.getAccountInfo(uid);
-
-      return reply.send({
-        authenticated: true,
-        uid,
-        profile: account?.profile || {},
-        data: account?.data || {}
+      return reply.send({ 
+        uid: account.UID,
+        profile: account.profile,
+        email: account.profile?.email
       });
     } catch (error) {
-      app.log.error({ error, uid }, "Failed to fetch account info");
-      
-      // Return basic session info even if CDC call fails
-      return reply.send({
-        authenticated: true,
-        uid,
-        profile: {},
-        data: {}
-      });
+      app.log.error({ error, uid }, "Failed to fetch user profile");
+      return reply.code(500).send({ error: "failed to fetch profile" });
     }
   });
 
   /**
    * POST /session/logout
-   * Deletes app session
+   * Destroys current session
    */
   app.post("/session/logout", async (request, reply) => {
-    const uid = request.session.get("uid");
-    
-    if (uid) {
-      app.log.info({ uid }, "User logged out");
+    const sessionData = request.session.get("cookie") as SessionData | undefined;
+    const uid = sessionData?.uid;
+
+    if (!uid) {
+      return reply.send({ ok: true, message: "no active session" });
     }
 
-    request.session.delete();
+    // Clear session by setting empty object
+    request.session.set("cookie", {});
+
+    app.log.info({ uid }, "Session destroyed");
 
     return reply.send({ ok: true });
   });
 
   /**
-   * GET /session/check
-   * Simple session check endpoint (for page protection)
+   * GET /auth/session/check
+   * Backward compatibility endpoint for old frontend code
    */
-  app.get("/session/check", async (request, reply) => {
-    const uid = request.session.get("uid");
+  app.get("/auth/session/check", async (request, reply) => {
+    const sessionData = request.session.get("cookie") as SessionData | undefined;
+    const uid = sessionData?.uid;
 
-    return reply.send({
-      authenticated: !!uid,
-      uid: uid || null
+    return reply.send({ 
+      isLoggedIn: !!uid, 
+      uid: uid || null 
     });
   });
 
   /**
-   * GET /auth/session/check
-   * Backward compatibility endpoint for frontend AccountMenu component
-   * Returns isLoggedIn instead of authenticated for legacy compatibility
+   * GET /auth/session
+   * Backward compatibility endpoint for old frontend code
    */
-  app.get("/auth/session/check", async (request, reply) => {
-    const uid = request.session.get("uid");
+  app.get("/auth/session", async (request, reply) => {
+    const sessionData = request.session.get("cookie") as SessionData | undefined;
+    const uid = sessionData?.uid;
 
-    return reply.send({
-      isLoggedIn: !!uid,
-      uid: uid || null
-    });
+    if (!uid) {
+      return reply.send({ isLoggedIn: false });
+    }
+
+    try {
+      const account = await gigyaRest.getAccountInfo(uid);
+      return reply.send({
+        isLoggedIn: true,
+        profile: account.profile
+      });
+    } catch (error) {
+      return reply.send({ isLoggedIn: false });
+    }
   });
 }
