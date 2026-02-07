@@ -9,5 +9,6 @@ declare module "@fastify/secure-session" {
     };
     expiresAt?: number;
     refreshToken?: string;
+    [key: string]: any;  // Allow any additional properties including "cookie"
   }
 }
