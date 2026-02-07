@@ -11,10 +11,12 @@ import { registerOidcRoutes } from "./routes/oidc.js";
 import { registerOidcDiscoveryProxyRoutes } from "./routes/oidcDiscoveryProxy.js";
 import { SessionStore } from "./services/session-store.js";
 import { CDCAuthService } from "./services/cdc-auth.js";
+import { GigyaRestService } from "./services/gigya-rest.js";
 import { registerAuthFlowRoutes } from "./routes/auth-flow.js";
 import { registerJWTAuthFlowRoutes } from "./routes/jwt-auth-flow.js";
 import { registerUserProtectedRoutes } from "./routes/user-protected.js";
 import { registerCMSRoutes } from "./routes/cms.js";
+import { registerSessionCdcRoutes } from "./routes/session-cdc.js";
 import {
   getCORSConfig,
   corsSecurityHook,
@@ -244,12 +246,17 @@ export async function buildServerEnhanced() {
   // Initialize CDC Auth Service (with Gigya SDK)
   const cdcAuth = new CDCAuthService(env);
 
+  // Initialize Gigya REST Service (for loginToken validation)
+  const gigyaRest = new GigyaRestService(env);
+
   // Log Gigya SDK status
   if (cdcAuth.hasGigyaSDK()) {
     app.log.info("Gigya SDK initialized - signature validation enabled");
   } else {
     app.log.warn("Gigya SDK not initialized - CDC_SECRET_KEY missing");
   }
+  
+  app.log.info("Gigya REST Service initialized for loginToken validation");
 
   // ============================================================================
   // ROUTE REGISTRATION
@@ -279,6 +286,10 @@ export async function buildServerEnhanced() {
   
   // CMS routes (public)
   await registerCMSRoutes(app);
+  
+  // CDC Session routes (loginToken-based authentication)
+  await registerSessionCdcRoutes(app, gigyaRest);
+  app.log.info("CDC Session routes registered: POST /session/login, GET /session/check, GET /auth/session/check");
 
   // ============================================================================
   // STARTUP VALIDATION
